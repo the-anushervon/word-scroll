@@ -29,24 +29,17 @@
             background: linear-gradient(to bottom, #24243e, #1a1a2e, #0f0c29);
             color: var(--text-primary);
             overflow: hidden;
-            height: 100vh;
-            width: 100vw;
+            /* FIX: Fixed positioning prevents 'float' bugs when address bar toggles */
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
         }
 
         /* --- ICONS --- */
         .icon {
-            width: 24px;
-            height: 24px;
-            stroke: currentColor;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            fill: none;
+            width: 24px; height: 24px;
+            stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;
         }
-        .icon-fill {
-            fill: currentColor;
-            stroke: none;
-        }
+        .icon-fill { fill: currentColor; stroke: none; }
 
         /* --- 2. ANIMATED BACKGROUND --- */
         .background-blobs {
@@ -83,26 +76,16 @@
         /* --- 4. DASHBOARD --- */
         .dashboard-header { 
             padding: 40px 20px 20px 20px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: flex-start;
+            display: flex; justify-content: space-between; align-items: flex-start;
         }
         .header-text h1 { font-size: 32px; font-weight: 800; }
         .header-text p { color: var(--text-secondary); margin-top: 5px; font-size: 15px; }
 
         .reset-btn {
-            background: rgba(255, 59, 48, 0.15);
-            border: 1px solid rgba(255, 59, 48, 0.3);
-            color: #ff3b30;
-            padding: 8px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-left: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
+            background: rgba(255, 59, 48, 0.15); border: 1px solid rgba(255, 59, 48, 0.3);
+            color: #ff3b30; padding: 8px 12px; border-radius: 12px;
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.5px; margin-left: 10px; cursor: pointer; transition: all 0.2s;
         }
         .reset-btn:active { background: rgba(255, 59, 48, 0.3); transform: scale(0.95); }
 
@@ -142,16 +125,14 @@
             height: 100%; 
             overflow-y: scroll; 
             scroll-snap-type: y mandatory;
-            /* REMOVED scroll-behavior: smooth; to prevent conflict with snap */
-            -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+            -webkit-overflow-scrolling: touch; 
         }
         .feed-container::-webkit-scrollbar { display: none; }
 
         .word-card {
-            height: 100vh; 
+            height: 100%; /* Fix to fill fixed body */
             width: 100vw; 
             scroll-snap-align: start;
-            /* ADDED: This forces the scroll to stop at every card */
             scroll-snap-stop: always; 
             position: relative; 
             display: flex; 
@@ -167,8 +148,10 @@
             justify-content: center; gap: 25px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
             position: relative; 
-            overflow: hidden; /* Be careful with this if elements animate outside */
+            overflow: hidden; 
             text-align: center;
+            /* FIX: Prevents browser history swipes interfering with taps */
+            touch-action: pan-y; 
         }
 
         .english-word {
@@ -187,11 +170,16 @@
         }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); box-shadow: 0 0 20px var(--accent-color); } 100% { transform: scale(1); } }
 
-        /* --- 6. CONTROLS --- */
-        .sidebar {
+        /* --- 6. CONTROLS (SEPARATED LEFT/RIGHT) --- */
+        .sidebar-right {
             position: absolute; right: 20px; bottom: 20%;
             display: flex; flex-direction: column; gap: 20px; z-index: 20;
         }
+        .sidebar-left {
+            position: absolute; left: 20px; bottom: 20%;
+            display: flex; flex-direction: column; gap: 20px; z-index: 20;
+        }
+
         .action-btn {
             background: rgba(0,0,0,0.3); backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.1); color: white;
@@ -248,36 +236,22 @@
         .result-msg { color: var(--text-secondary); margin-bottom: 30px; }
         .next-lvl-btn { background: var(--success-color); color: white; padding: 15px 30px; border-radius: 30px; border: none; font-size: 18px; font-weight: 700; }
 
-        /* --- 8. ANIMATIONS (FIXED FOR MOBILE) --- */
+        /* --- 8. ANIMATIONS --- */
         .big-heart {
-            position: absolute; 
-            top: 50%; left: 50%; 
-            /* Use translate3d to force GPU acceleration */
+            position: absolute; top: 50%; left: 50%; 
             transform: translate3d(-50%, -50%, 0) scale(0);
-            pointer-events: none; 
-            opacity: 0; 
-            z-index: 100;
+            pointer-events: none; opacity: 0; z-index: 100;
             color: var(--heart-color);
-            will-change: transform, opacity; /* Hint to browser */
+            will-change: transform, opacity;
         }
         .big-heart svg { width: 120px; height: 120px; fill: var(--heart-color); stroke: none; }
         
-        /* Updated Keyframes for better mobile support */
         .animate-heart { animation: popHeart 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         
         @keyframes popHeart {
-            0% { 
-                opacity: 0; 
-                transform: translate3d(-50%, -50%, 0) scale(0) rotate(-45deg); 
-            }
-            50% { 
-                opacity: 1; 
-                transform: translate3d(-50%, -50%, 0) scale(1.5) rotate(0deg); 
-            }
-            100% { 
-                opacity: 0; 
-                transform: translate3d(-50%, -50%, 0) scale(1) rotate(0deg); 
-            }
+            0% { opacity: 0; transform: translate3d(-50%, -50%, 0) scale(0) rotate(-45deg); }
+            50% { opacity: 1; transform: translate3d(-50%, -50%, 0) scale(1.5) rotate(0deg); }
+            100% { opacity: 0; transform: translate3d(-50%, -50%, 0) scale(1) rotate(0deg); }
         }
 
     </style>
@@ -428,7 +402,7 @@
             };
             categoryGrid.appendChild(favCard);
 
-            // Levels
+            // Levels Logic Fixed for Sorting
             const cats = [...new Set(fullVocabulary.map(w => w.cat))];
             cats.sort((a, b) => {
                 const numA = parseInt(a.replace(/\D/g, '')) || 0;
@@ -515,35 +489,52 @@
                     <div class="english-word">${word.en}</div>
                     <div class="tajik-word">${word.tj}</div>
                     <div class="big-heart">${ICONS.HEART}</div>
-                    <div class="hint">Swipe Left to Speak</div>
+                    <div class="hint" style="font-size: 10px; opacity: 0.5; margin-top: 10px;">Double tap to like</div>
                 </div>
-                <div class="sidebar">
-                    <button class="action-btn like-btn ${isFav ? 'active' : ''}" id="btn-${word.id}" onclick="toggleLike(${word.id}, this)">
-                        ${ICONS.HEART}
-                    </button>
+                
+                <div class="sidebar-left">
                     <button class="action-btn" onclick="speak('${enText}')">
                         ${ICONS.SPEAKER}
                     </button>
                 </div>
+
+                <div class="sidebar-right">
+                    <button class="action-btn like-btn ${isFav ? 'active' : ''}" id="btn-${word.id}" onclick="toggleLike(${word.id}, this)">
+                        ${ICONS.HEART}
+                    </button>
+                </div>
             `;
-            let lastTap = 0;
+            
+            // FIX: Double Tap Logic for Touch Devices (Instant response)
+            let lastTapTime = 0;
             const inner = card.querySelector('.card-inner');
-            inner.addEventListener('click', () => {
-                const now = new Date().getTime();
-                if (now - lastTap < 300) { toggleLike(word.id, document.getElementById(`btn-${word.id}`)); animateHeart(inner); }
-                lastTap = now;
-            });
-            let startX = 0;
-            inner.addEventListener('touchstart', e => startX = e.changedTouches[0].screenX);
-            inner.addEventListener('touchend', e => {
-                const endX = e.changedTouches[0].screenX;
-                if (startX - endX > 60) {
-                    speak(word.en);
-                    inner.style.transition = "transform 0.2s";
-                    inner.style.transform = "translateX(-30px)";
-                    setTimeout(() => inner.style.transform = "translateX(0)", 200);
+            
+            inner.addEventListener('touchend', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTapTime;
+                
+                if (tapLength < 300 && tapLength > 0) {
+                    e.preventDefault(); // Prevent zoom or other defaults
+                    toggleLike(word.id, document.getElementById(`btn-${word.id}`));
+                    animateHeart(inner);
                 }
+                lastTapTime = currentTime;
             });
+
+            // Fallback for click (desktop testing)
+            inner.addEventListener('click', (e) => {
+                // If the device supports touch, 'touchend' handled it, so we ignore click to prevent double firing if needed.
+                // But for desktop debugging we keep simple logic:
+                if (window.matchMedia("(pointer: coarse)").matches) return; 
+                
+                const currentTime = new Date().getTime();
+                if (currentTime - lastTapTime < 300) {
+                     toggleLike(word.id, document.getElementById(`btn-${word.id}`));
+                     animateHeart(inner);
+                }
+                lastTapTime = currentTime;
+            });
+
             feedContainer.appendChild(card);
         }
 
@@ -647,47 +638,71 @@
             }
         }
 
-        function unlockNextLevel(current) {
-            const currNum = parseInt(current.replace(/\D/g, ''));
-            const nextLevelName = `Level ${currNum + 1}`;
-            const exists = fullVocabulary.some(w => w.cat === nextLevelName);
-            if (exists && !unlockedLevels.includes(nextLevelName)) {
-                unlockedLevels.push(nextLevelName);
-                localStorage.setItem('tajikUnlocked', JSON.stringify(unlockedLevels));
-                renderDashboard();
+        // FIX: Next Level Logic now works with ANY category name
+        function unlockNextLevel(currentCategoryName) {
+            const allCats = [...new Set(fullVocabulary.map(w => w.cat))];
+            
+            // Sort exactly like Dashboard
+            allCats.sort((a, b) => {
+                const numA = parseInt(a.replace(/\D/g, '')) || 0;
+                const numB = parseInt(b.replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+
+            // Find current index and get next
+            const currentIndex = allCats.indexOf(currentCategoryName);
+            if (currentIndex !== -1 && currentIndex < allCats.length - 1) {
+                const nextCat = allCats[currentIndex + 1];
+                if (!unlockedLevels.includes(nextCat)) {
+                    unlockedLevels.push(nextCat);
+                    localStorage.setItem('tajikUnlocked', JSON.stringify(unlockedLevels));
+                    renderDashboard();
+                }
             }
         }
 
         // --- UTILS ---
         function toggleLike(id, btn) {
             const index = favorites.indexOf(id);
-            if (index === -1) { favorites.push(id); if(btn) btn.classList.add('active'); haptic('light'); }
+            if (index === -1) { favorites.push(id); if(btn) btn.classList.add('active'); haptic('medium'); }
             else { favorites.splice(index, 1); if(btn) btn.classList.remove('active'); }
             localStorage.setItem('tajikFavorites', JSON.stringify(favorites));
             renderDashboard(); 
         }
+        
         function animateHeart(container) {
             const heart = container.querySelector('.big-heart');
-            // Remove class, force reflow, add class again
             heart.classList.remove('animate-heart');
-            void heart.offsetWidth; // trigger reflow
+            void heart.offsetWidth; 
             heart.classList.add('animate-heart');
         }
+
         function speak(text) {
+            // FIX: Cancel previous speech to prevent overlap
+            window.speechSynthesis.cancel();
+            
             const u = new SpeechSynthesisUtterance(text);
             u.lang = 'en-US'; u.rate = 0.9; 
             window.speechSynthesis.speak(u);
         }
+
+        // FIX: Crash Fix for Haptic
         function haptic(style = 'medium') {
             if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
-                window.Telegram.WebApp.HapticFeedback.notificationOccurred(style === 'medium' ? 'success' : style);
+                if (['error', 'success', 'warning'].includes(style)) {
+                    window.Telegram.WebApp.HapticFeedback.notificationOccurred(style);
+                } else {
+                    window.Telegram.WebApp.HapticFeedback.impactOccurred(style);
+                }
             }
         }
+
         function goHome() {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById('dashboard-view').classList.add('active');
             renderDashboard();
         }
+        
         function triggerConfetti() {
             var duration = 3000;
             var end = Date.now() + duration;
