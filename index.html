@@ -140,7 +140,11 @@
 
         /* --- 5. FEED --- */
         .feed-container {
-            height: 100%; overflow-y: scroll; scroll-snap-type: y mandatory;
+            height: 100%; 
+            overflow-y: scroll; 
+            scroll-snap-type: y mandatory;
+            /* FIX 1: This forces the scroll to stop at every card, preventing skip */
+            scroll-snap-stop: always; 
             scroll-behavior: smooth;
         }
         .feed-container::-webkit-scrollbar { display: none; }
@@ -190,7 +194,7 @@
             transition: all 0.2s;
         }
         
-        /* Heart Toggle Logic: Outline by default, Filled when active */
+        /* Heart Toggle Logic */
         .action-btn.like-btn svg { fill: transparent; transition: fill 0.2s, stroke 0.2s; }
         .action-btn.active.like-btn { background: rgba(255, 45, 85, 0.2); border-color: var(--heart-color); }
         .action-btn.active.like-btn svg { fill: var(--heart-color); stroke: var(--heart-color); }
@@ -390,7 +394,6 @@
             // Favorites
             const favCard = document.createElement('div');
             favCard.className = 'cat-card fav-card';
-            // Replaced Emoji with Icon
             favCard.innerHTML = `
                 <div><div class="cat-name"><span style="color:var(--heart-color); display:flex; align-items:center">${ICONS.HEART.replace('class="icon"', 'class="icon icon-fill" style="width:18px;height:18px;"')}</span> Favorites</div><div class="cat-progress">${favorites.length} Saved</div></div>
                 <button class="fav-quiz-btn" id="fav-quiz-trigger">Quiz</button>
@@ -417,7 +420,6 @@
                 const div = document.createElement('div');
                 div.className = `cat-card ${isLocked ? 'locked' : ''}`;
                 if (isLocked) {
-                    // Replaced Lock Emoji with Icon
                     div.innerHTML = `<div class="lock-icon">${ICONS.LOCK}</div><div class="cat-name">${cat}</div>`;
                 } else {
                     div.innerHTML = `<div class="cat-name">${cat}</div><div class="cat-progress">${count} Words</div>`;
@@ -486,7 +488,7 @@
             card.className = 'word-card';
             const isFav = favorites.includes(word.id);
             const enText = word.en.replace(/'/g, "\\'");
-            // Replaced Emojis with ICONS.HEART and ICONS.SPEAKER
+            
             card.innerHTML = `
                 <div class="card-inner">
                     <div class="english-word">${word.en}</div>
@@ -495,7 +497,7 @@
                     <div class="hint">Swipe Left to Speak</div>
                 </div>
                 <div class="sidebar">
-                    <button class="action-btn like-btn ${isFav ? 'active' : ''}" id="btn-${word.id}" onclick="toggleLike(${word.id}, this)">
+                    <button class="action-btn like-btn ${isFav ? 'active' : ''}" id="btn-${word.id}" onclick="handleLikeClick(${word.id}, this)">
                         ${ICONS.HEART}
                     </button>
                     <button class="action-btn" onclick="speak('${enText}')">
@@ -505,11 +507,23 @@
             `;
             let lastTap = 0;
             const inner = card.querySelector('.card-inner');
+            
+            // CLICK HANDLER FOR CARD (DOUBLE TAP or SINGLE TAP)
             inner.addEventListener('click', () => {
                 const now = new Date().getTime();
-                if (now - lastTap < 300) { toggleLike(word.id, document.getElementById(`btn-${word.id}`)); animateHeart(inner); }
+                if (now - lastTap < 300) { 
+                    // Double Tap Logic
+                    const wasLiked = toggleLike(word.id); 
+                    updateLikeBtnUI(word.id, wasLiked);
+                    
+                    // FIX 2: Only animate if it IS liked now
+                    if (wasLiked) {
+                        animateHeart(inner); 
+                    }
+                }
                 lastTap = now;
             });
+
             let startX = 0;
             inner.addEventListener('touchstart', e => startX = e.changedTouches[0].screenX);
             inner.addEventListener('touchend', e => {
@@ -636,13 +650,40 @@
         }
 
         // --- UTILS ---
-        function toggleLike(id, btn) {
+        
+        // Updated to return status: Returns TRUE if Liked, FALSE if Unliked
+        function toggleLike(id) {
             const index = favorites.indexOf(id);
-            if (index === -1) { favorites.push(id); if(btn) btn.classList.add('active'); haptic('light'); }
-            else { favorites.splice(index, 1); if(btn) btn.classList.remove('active'); }
-            localStorage.setItem('tajikFavorites', JSON.stringify(favorites));
-            renderDashboard(); 
+            if (index === -1) { 
+                favorites.push(id); 
+                haptic('light'); 
+                localStorage.setItem('tajikFavorites', JSON.stringify(favorites));
+                return true; 
+            } else { 
+                favorites.splice(index, 1); 
+                localStorage.setItem('tajikFavorites', JSON.stringify(favorites));
+                return false; 
+            }
         }
+
+        // Helper to update UI safely
+        function updateLikeBtnUI(id, isLiked) {
+            const btn = document.getElementById(`btn-${id}`);
+            if(btn) {
+                if(isLiked) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }
+            // Update dashboard count silently if visible
+            // renderDashboard(); // Optional: Re-render dashboard if needed immediately
+        }
+
+        // Handler for the sidebar button click
+        function handleLikeClick(id, btn) {
+            const isLiked = toggleLike(id);
+            if(isLiked) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+
         function animateHeart(container) {
             const heart = container.querySelector('.big-heart');
             heart.classList.remove('animate-heart');
