@@ -90,7 +90,6 @@
         .header-text h1 { font-size: 32px; font-weight: 800; }
         .header-text p { color: var(--text-secondary); margin-top: 5px; font-size: 15px; }
 
-        /* Reset Button */
         .reset-btn {
             background: rgba(255, 59, 48, 0.15);
             border: 1px solid rgba(255, 59, 48, 0.3);
@@ -138,20 +137,26 @@
         .cat-card.locked { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
         .lock-icon { margin-bottom: 5px; opacity: 0.5; color: white; }
 
-        /* --- 5. FEED --- */
+        /* --- 5. FEED (SCROLL FIXES HERE) --- */
         .feed-container {
             height: 100%; 
             overflow-y: scroll; 
             scroll-snap-type: y mandatory;
-            /* FIX 1: This forces the scroll to stop at every card, preventing skip */
-            scroll-snap-stop: always; 
-            scroll-behavior: smooth;
+            /* REMOVED scroll-behavior: smooth; to prevent conflict with snap */
+            -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
         }
         .feed-container::-webkit-scrollbar { display: none; }
 
         .word-card {
-            height: 100vh; width: 100vw; scroll-snap-align: start;
-            position: relative; display: flex; align-items: center; justify-content: center;
+            height: 100vh; 
+            width: 100vw; 
+            scroll-snap-align: start;
+            /* ADDED: This forces the scroll to stop at every card */
+            scroll-snap-stop: always; 
+            position: relative; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
         }
 
         .card-inner {
@@ -161,7 +166,8 @@
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; gap: 25px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            position: relative; overflow: hidden;
+            position: relative; 
+            overflow: hidden; /* Be careful with this if elements animate outside */
             text-align: center;
         }
 
@@ -194,7 +200,6 @@
             transition: all 0.2s;
         }
         
-        /* Heart Toggle Logic */
         .action-btn.like-btn svg { fill: transparent; transition: fill 0.2s, stroke 0.2s; }
         .action-btn.active.like-btn { background: rgba(255, 45, 85, 0.2); border-color: var(--heart-color); }
         .action-btn.active.like-btn svg { fill: var(--heart-color); stroke: var(--heart-color); }
@@ -243,19 +248,36 @@
         .result-msg { color: var(--text-secondary); margin-bottom: 30px; }
         .next-lvl-btn { background: var(--success-color); color: white; padding: 15px 30px; border-radius: 30px; border: none; font-size: 18px; font-weight: 700; }
 
-        /* --- 8. ANIMATIONS --- */
+        /* --- 8. ANIMATIONS (FIXED FOR MOBILE) --- */
         .big-heart {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
-            pointer-events: none; opacity: 0; z-index: 50;
+            position: absolute; 
+            top: 50%; left: 50%; 
+            /* Use translate3d to force GPU acceleration */
+            transform: translate3d(-50%, -50%, 0) scale(0);
+            pointer-events: none; 
+            opacity: 0; 
+            z-index: 100;
             color: var(--heart-color);
+            will-change: transform, opacity; /* Hint to browser */
         }
         .big-heart svg { width: 120px; height: 120px; fill: var(--heart-color); stroke: none; }
         
+        /* Updated Keyframes for better mobile support */
         .animate-heart { animation: popHeart 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
         @keyframes popHeart {
-            0% { transform: translate(-50%, -50%) scale(0) rotate(-45deg); opacity: 0; }
-            50% { transform: translate(-50%, -50%) scale(1.5) rotate(0deg); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 0; }
+            0% { 
+                opacity: 0; 
+                transform: translate3d(-50%, -50%, 0) scale(0) rotate(-45deg); 
+            }
+            50% { 
+                opacity: 1; 
+                transform: translate3d(-50%, -50%, 0) scale(1.5) rotate(0deg); 
+            }
+            100% { 
+                opacity: 0; 
+                transform: translate3d(-50%, -50%, 0) scale(1) rotate(0deg); 
+            }
         }
 
     </style>
@@ -488,7 +510,6 @@
             card.className = 'word-card';
             const isFav = favorites.includes(word.id);
             const enText = word.en.replace(/'/g, "\\'");
-            
             card.innerHTML = `
                 <div class="card-inner">
                     <div class="english-word">${word.en}</div>
@@ -497,7 +518,7 @@
                     <div class="hint">Swipe Left to Speak</div>
                 </div>
                 <div class="sidebar">
-                    <button class="action-btn like-btn ${isFav ? 'active' : ''}" id="btn-${word.id}" onclick="handleLikeClick(${word.id}, this)">
+                    <button class="action-btn like-btn ${isFav ? 'active' : ''}" id="btn-${word.id}" onclick="toggleLike(${word.id}, this)">
                         ${ICONS.HEART}
                     </button>
                     <button class="action-btn" onclick="speak('${enText}')">
@@ -507,23 +528,11 @@
             `;
             let lastTap = 0;
             const inner = card.querySelector('.card-inner');
-            
-            // CLICK HANDLER FOR CARD (DOUBLE TAP or SINGLE TAP)
             inner.addEventListener('click', () => {
                 const now = new Date().getTime();
-                if (now - lastTap < 300) { 
-                    // Double Tap Logic
-                    const wasLiked = toggleLike(word.id); 
-                    updateLikeBtnUI(word.id, wasLiked);
-                    
-                    // FIX 2: Only animate if it IS liked now
-                    if (wasLiked) {
-                        animateHeart(inner); 
-                    }
-                }
+                if (now - lastTap < 300) { toggleLike(word.id, document.getElementById(`btn-${word.id}`)); animateHeart(inner); }
                 lastTap = now;
             });
-
             let startX = 0;
             inner.addEventListener('touchstart', e => startX = e.changedTouches[0].screenX);
             inner.addEventListener('touchend', e => {
@@ -650,44 +659,18 @@
         }
 
         // --- UTILS ---
-        
-        // Updated to return status: Returns TRUE if Liked, FALSE if Unliked
-        function toggleLike(id) {
+        function toggleLike(id, btn) {
             const index = favorites.indexOf(id);
-            if (index === -1) { 
-                favorites.push(id); 
-                haptic('light'); 
-                localStorage.setItem('tajikFavorites', JSON.stringify(favorites));
-                return true; 
-            } else { 
-                favorites.splice(index, 1); 
-                localStorage.setItem('tajikFavorites', JSON.stringify(favorites));
-                return false; 
-            }
+            if (index === -1) { favorites.push(id); if(btn) btn.classList.add('active'); haptic('light'); }
+            else { favorites.splice(index, 1); if(btn) btn.classList.remove('active'); }
+            localStorage.setItem('tajikFavorites', JSON.stringify(favorites));
+            renderDashboard(); 
         }
-
-        // Helper to update UI safely
-        function updateLikeBtnUI(id, isLiked) {
-            const btn = document.getElementById(`btn-${id}`);
-            if(btn) {
-                if(isLiked) btn.classList.add('active');
-                else btn.classList.remove('active');
-            }
-            // Update dashboard count silently if visible
-            // renderDashboard(); // Optional: Re-render dashboard if needed immediately
-        }
-
-        // Handler for the sidebar button click
-        function handleLikeClick(id, btn) {
-            const isLiked = toggleLike(id);
-            if(isLiked) btn.classList.add('active');
-            else btn.classList.remove('active');
-        }
-
         function animateHeart(container) {
             const heart = container.querySelector('.big-heart');
+            // Remove class, force reflow, add class again
             heart.classList.remove('animate-heart');
-            void heart.offsetWidth; 
+            void heart.offsetWidth; // trigger reflow
             heart.classList.add('animate-heart');
         }
         function speak(text) {
