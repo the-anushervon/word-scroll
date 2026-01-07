@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Word Scroll</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        /* --- 1. RESET & VARS --- */
+        :root {
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --accent-color: #00d2ff;
+            --heart-color: #FF2D55;
+            --success-color: #4cd964;
+            --error-color: #ff3b30;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.6);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: var(--font-stack);
+            background: #0f0c29;
+            background: linear-gradient(to bottom, #24243e, #1a1a2e, #0f0c29);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* --- 2. ANIMATED BACKGROUND --- */
+        .background-blobs {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; overflow: hidden; pointer-events: none;
+        }
+
+        .blob {
+            position: absolute; filter: blur(80px); opacity: 0.5; border-radius: 50%;
+            animation: float 12s infinite ease-in-out;
+        }
+        .blob-1 { top: -10%; left: -20%; width: 400px; height: 400px; background: #8E2DE2; }
+        .blob-2 { bottom: -10%; right: -20%; width: 350px; height: 350px; background: #4A00E0; animation-delay: 4s; }
+        .blob-3 { top: 40%; left: 30%; width: 250px; height: 250px; background: #00c6ff; opacity: 0.3; animation-delay: 8s; }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+
+        /* --- 3. APP CONTAINER & VIEWS --- */
+        #app { position: relative; z-index: 10; height: 100%; width: 100%; }
+        .view { display: none; height: 100%; width: 100%; flex-direction: column; }
+        .view.active { display: flex; }
+
+        /* Loader */
+        #loader {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px;
+            z-index: 1000; display: none; backdrop-filter: blur(10px);
+        }
+
+        /* --- 4. DASHBOARD --- */
+        .dashboard-header { 
+            padding: 40px 20px 20px 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-start;
+        }
+        .header-text h1 { font-size: 32px; font-weight: 800; }
+        .header-text p { color: var(--text-secondary); margin-top: 5px; font-size: 15px; }
+
+        /* Reset Button */
+        .reset-btn {
+            background: rgba(255, 59, 48, 0.15);
+            border: 1px solid rgba(255, 59, 48, 0.3);
+            color: #ff3b30;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-left: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .reset-btn:active { background: rgba(255, 59, 48, 0.3); transform: scale(0.95); }
+
+        .category-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+            padding: 10px 20px 100px 20px; overflow-y: auto;
+        }
+
+        .cat-card {
+            background: var(--glass-bg); backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: 16px;
+            height: 100px; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            position: relative; overflow: hidden; transition: transform 0.15s ease;
+        }
+        .cat-card:active { transform: scale(0.96); background: rgba(255,255,255,0.2); }
+        
+        .cat-name { font-weight: 700; font-size: 16px; z-index: 2; }
+        .cat-progress { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+        .cat-card.fav-card {
+            grid-column: span 2; 
+            background: linear-gradient(45deg, rgba(255, 45, 85, 0.2), rgba(255, 45, 85, 0.1));
+            border-color: rgba(255, 45, 85, 0.3);
+            flex-direction: row; justify-content: space-between; padding: 0 25px;
+        }
+        .fav-quiz-btn {
+            background: #fff; color: #000; font-weight: 700; font-size: 12px;
+            padding: 8px 16px; border-radius: 20px; border: none;
+        }
+
+        .cat-card.locked { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
+        .lock-icon { font-size: 24px; margin-bottom: 5px; opacity: 0.5; }
+
+        /* --- 5. FEED --- */
+        .feed-container {
+            height: 100%; overflow-y: scroll; scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+        }
+        .feed-container::-webkit-scrollbar { display: none; }
+
+        .word-card {
+            height: 100vh; width: 100vw; scroll-snap-align: start;
+            position: relative; display: flex; align-items: center; justify-content: center;
+        }
+
+        .card-inner {
+            background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            width: 88%; height: 75%; border-radius: 32px;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 25px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative; overflow: hidden;
+            text-align: center;
+        }
+
+        .english-word {
+            font-size: 48px; font-weight: 900; letter-spacing: -1px; line-height: 1.1;
+            padding: 0 20px;
+            background: linear-gradient(135deg, #ffffff 0%, #dcdcdc 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .tajik-word { font-size: 32px; font-weight: 500; color: var(--accent-color); }
+
+        .quiz-entry-card .english-word { font-size: 32px; -webkit-text-fill-color: white; }
+        .quiz-entry-card .start-btn {
+            background: var(--accent-color); color: #000; padding: 15px 40px;
+            border-radius: 30px; border: none; font-weight: 800; font-size: 18px;
+            margin-top: 20px; animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); box-shadow: 0 0 20px var(--accent-color); } 100% { transform: scale(1); } }
+
+        /* --- 6. CONTROLS --- */
+        .sidebar {
+            position: absolute; right: 20px; bottom: 20%;
+            display: flex; flex-direction: column; gap: 20px; z-index: 20;
+        }
+        .action-btn {
+            background: rgba(0,0,0,0.3); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1); color: white;
+            width: 50px; height: 50px; border-radius: 50%; font-size: 22px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .action-btn.active { background: rgba(255, 45, 85, 0.2); color: var(--heart-color); border-color: var(--heart-color); }
+        .back-btn {
+            position: absolute; top: 20px; left: 20px; z-index: 50;
+            background: rgba(0,0,0,0.2); border: none; color: white;
+            padding: 10px 18px; border-radius: 20px; font-weight: 600; backdrop-filter: blur(10px);
+        }
+
+        /* --- 7. QUIZ VIEW --- */
+        #quiz-view { padding: 20px; justify-content: center; }
+        
+        .quiz-header {
+            position: absolute; top: 0; left: 0; width: 100%; padding: 40px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        
+        .progress-container { width: 100%; display: flex; justify-content: center; padding-bottom: 30px; }
+        .progress-track { width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 10px; overflow: hidden; margin: 0 auto; }
+        .progress-fill { height: 100%; background: var(--accent-color); width: 0%; transition: width 0.3s; }
+
+        .question-card {
+            background: rgba(255,255,255,0.1); backdrop-filter: blur(30px);
+            border-radius: 24px; padding: 30px 20px; width: 100%; max-width: 500px;
+            text-align: center; margin: auto;
+        }
+        .q-label { text-transform: uppercase; font-size: 12px; letter-spacing: 2px; color: var(--accent-color); margin-bottom: 10px; }
+        .q-word { font-size: 36px; font-weight: 800; margin-bottom: 30px; }
+
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; }
+        .option-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
+            padding: 20px; border-radius: 16px; color: white; font-size: 18px; font-weight: 600;
+        }
+        .option-btn.correct { background: var(--success-color); border-color: var(--success-color); }
+        .option-btn.wrong { background: var(--error-color); border-color: var(--error-color); opacity: 0.5; }
+
+        .result-container { text-align: center; display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+        .score-circle { 
+            width: 150px; height: 150px; border-radius: 50%; border: 5px solid var(--accent-color);
+            display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 800;
+            margin-bottom: 20px; background: rgba(0,0,0,0.2);
+        }
+        .result-title { font-size: 28px; font-weight: 800; margin-bottom: 10px; }
+        .result-msg { color: var(--text-secondary); margin-bottom: 30px; }
+        .next-lvl-btn { background: var(--success-color); color: white; padding: 15px 30px; border-radius: 30px; border: none; font-size: 18px; font-weight: 700; }
+
+        /* --- 8. ANIMATIONS --- */
+        .big-heart {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+            font-size: 100px; color: var(--heart-color); pointer-events: none; opacity: 0; z-index: 50;
+        }
+        .animate-heart { animation: popHeart 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        @keyframes popHeart {
+            0% { transform: translate(-50%, -50%) scale(0) rotate(-45deg); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.5) rotate(0deg); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 0; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <div id="loader">Syncing Database...</div>
+
+    <div id="app">
+        
+        <div id="dashboard-view" class="view active">
+            <div class="dashboard-header">
+                <div class="header-text">
+                    <h1>Word Scroll</h1>
+                    <p>Scroll words. Pass quizzes. Unlock levels.</p>
+                </div>
+                <button class="reset-btn" onclick="resetProgress()">Reset</button>
+            </div>
+            <div class="category-grid" id="category-grid"></div>
+        </div>
+
+        <div id="feed-view" class="view">
+            <button class="back-btn" onclick="goHome()">← Back</button>
+            <div class="feed-container" id="feed-container"></div>
+        </div>
+
+        <div id="quiz-view" class="view">
+            <div id="quiz-active">
+                <div class="quiz-header">
+                    <div style="font-weight:700" id="quiz-level-name">Level X</div>
+                    <button onclick="goHome()" style="background:none; border:none; color:white; font-size:24px;">×</button>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+                </div>
+
+                <div class="question-card">
+                    <div class="q-label">Translate this</div>
+                    <div class="q-word" id="q-word">Word</div>
+                    <div class="options-grid" id="options-grid"></div>
+                </div>
+            </div>
+
+            <div id="quiz-result" class="result-container">
+                <div class="score-circle" id="score-display">0/10</div>
+                <div class="result-title" id="result-title">Good Job!</div>
+                <div class="result-msg" id="result-msg">You need 8/10 to unlock the next level.</div>
+                <button class="next-lvl-btn" id="quiz-action-btn" onclick="goHome()">Back to Menu</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // CONFIG
+        const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQMIwv2mhwpTESnRX_hwLdsf29F4RTs7AyevWeqlO2Lo6bsMsTCvAG49wiZyvY_AaY9FWejVnvpe1U/pub?output=csv"; 
+        const BATCH_SIZE = 5; 
+
+        // STATE
+        let fullVocabulary = [];
+        let currentQueue = [];
+        let favorites = JSON.parse(localStorage.getItem('tajikFavorites')) || [];
+        let unlockedLevels = JSON.parse(localStorage.getItem('tajikUnlocked')) || ['Level 1'];
+        
+        // Quiz State
+        let quizQuestions = [];
+        let quizIndex = 0;
+        let quizScore = 0;
+        let currentQuizLevel = "";
+
+        const feedContainer = document.getElementById('feed-container');
+        const categoryGrid = document.getElementById('category-grid');
+        const loader = document.getElementById('loader');
+
+        async function init() {
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.expand();
+            }
+            if (GOOGLE_SHEET_URL) {
+                loader.style.display = 'block';
+                await fetchWords();
+                loader.style.display = 'none';
+            } else {
+                fullVocabulary = [{id:1, cat:'Level 1', en:'Hello', tj:'Салом'}];
+            }
+            renderDashboard();
+        }
+
+        async function fetchWords() {
+            try {
+                const response = await fetch(GOOGLE_SHEET_URL);
+                const csvText = await response.text();
+                fullVocabulary = parseCSV(csvText);
+            } catch (error) {
+                console.error("Fetch failed", error);
+                alert("Error loading data.");
+            }
+        }
+
+        function parseCSV(csv) {
+            const lines = csv.split('\n');
+            const result = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i]) continue;
+                const parts = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
+                if (parts.length >= 3) {
+                    result.push({
+                        id: i,
+                        cat: parts[0].trim().replace(/^"|"$/g, ''),
+                        en: parts[1].trim().replace(/^"|"$/g, ''),
+                        tj: parts[2].trim().replace(/^"|"$/g, '')
+                    });
+                }
+            }
+            return result;
+        }
+
+        // --- DASHBOARD ---
+        function renderDashboard() {
+            categoryGrid.innerHTML = '';
+
+            // Favorites
+            const favCard = document.createElement('div');
+            favCard.className = 'cat-card fav-card';
+            favCard.innerHTML = `
+                <div><div class="cat-name">❤️ Favorites</div><div class="cat-progress">${favorites.length} Saved</div></div>
+                <button class="fav-quiz-btn" id="fav-quiz-trigger">Quiz</button>
+            `;
+            favCard.onclick = (e) => { if(e.target.id !== 'fav-quiz-trigger') loadCategory('Favorites'); };
+            favCard.querySelector('#fav-quiz-trigger').onclick = (e) => {
+                e.stopPropagation();
+                if(favorites.length < 5) { alert("Save at least 5 words to take a quiz!"); return; }
+                initQuiz('Favorites');
+            };
+            categoryGrid.appendChild(favCard);
+
+            // Levels
+            const cats = [...new Set(fullVocabulary.map(w => w.cat))];
+            cats.sort((a, b) => {
+                const numA = parseInt(a.replace(/\D/g, '')) || 0;
+                const numB = parseInt(b.replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+
+            cats.forEach(cat => {
+                const isLocked = !unlockedLevels.includes(cat);
+                const count = fullVocabulary.filter(w => w.cat === cat).length;
+                const div = document.createElement('div');
+                div.className = `cat-card ${isLocked ? 'locked' : ''}`;
+                if (isLocked) {
+                    div.innerHTML = `<div class="lock-icon">🔒</div><div class="cat-name">${cat}</div>`;
+                } else {
+                    div.innerHTML = `<div class="cat-name">${cat}</div><div class="cat-progress">${count} Words</div>`;
+                    div.onclick = () => loadCategory(cat);
+                }
+                categoryGrid.appendChild(div);
+            });
+        }
+
+        // --- RESET FUNCTION ---
+        function resetProgress() {
+            if (confirm("Are you sure you want to RESET all progress? This will lock all levels and clear favorites.")) {
+                localStorage.removeItem('tajikFavorites');
+                localStorage.removeItem('tajikUnlocked');
+                favorites = [];
+                unlockedLevels = ['Level 1'];
+                renderDashboard();
+                alert("All progress has been reset.");
+            }
+        }
+
+        // --- FEED LOGIC ---
+        function loadCategory(catName) {
+            if (catName === 'Favorites') {
+                currentQueue = fullVocabulary.filter(w => favorites.includes(w.id));
+                if (currentQueue.length === 0) { alert("No favorites yet!"); return; }
+            } else {
+                currentQueue = fullVocabulary.filter(w => w.cat === catName);
+                currentQueue.sort(() => Math.random() - 0.5); 
+            }
+            if (catName !== 'Favorites' || currentQueue.length >= 5) {
+                currentQueue.push({ type: 'quiz_prompt', cat: catName });
+            }
+            feedContainer.innerHTML = '';
+            feedContainer.scrollTop = 0;
+            renderBatch(0, BATCH_SIZE);
+            document.getElementById('dashboard-view').classList.remove('active');
+            document.getElementById('feed-view').classList.add('active');
+            feedContainer.onscroll = handleScroll;
+        }
+
+        function handleScroll() {
+            const { scrollTop, scrollHeight, clientHeight } = feedContainer;
+            if (scrollTop + clientHeight >= scrollHeight - clientHeight) {
+                const currentCount = feedContainer.childElementCount;
+                if (currentCount < currentQueue.length) {
+                    renderBatch(currentCount, BATCH_SIZE);
+                }
+            }
+        }
+
+        function renderBatch(startIndex, count) {
+            const end = Math.min(startIndex + count, currentQueue.length);
+            for (let i = startIndex; i < end; i++) {
+                const item = currentQueue[i];
+                if (item.type === 'quiz_prompt') {
+                    createQuizPromptCard(item.cat);
+                } else {
+                    createWordCard(item);
+                }
+            }
+        }
+
+        function createWordCard(word) {
+            const card = document.createElement('div');
+            card.className = 'word-card';
+            const isFav = favorites.includes(word.id);
+            const enText = word.en.replace(/'/g, "\\'");
+            card.innerHTML = `
+                <div class="card-inner">
+                    <div class="english-word">${word.en}</div>
+                    <div class="tajik-word">${word.tj}</div>
+                    <div class="big-heart">❤️</div>
+                    <div class="hint">Swipe Left to Speak</div>
+                </div>
+                <div class="sidebar">
+                    <button class="action-btn ${isFav ? 'active' : ''}" id="btn-${word.id}" onclick="toggleLike(${word.id}, this)">❤️</button>
+                    <button class="action-btn" onclick="speak('${enText}')">🔊</button>
+                </div>
+            `;
+            let lastTap = 0;
+            const inner = card.querySelector('.card-inner');
+            inner.addEventListener('click', () => {
+                const now = new Date().getTime();
+                if (now - lastTap < 300) { toggleLike(word.id, document.getElementById(`btn-${word.id}`)); animateHeart(inner); }
+                lastTap = now;
+            });
+            let startX = 0;
+            inner.addEventListener('touchstart', e => startX = e.changedTouches[0].screenX);
+            inner.addEventListener('touchend', e => {
+                const endX = e.changedTouches[0].screenX;
+                if (startX - endX > 60) {
+                    speak(word.en);
+                    inner.style.transition = "transform 0.2s";
+                    inner.style.transform = "translateX(-30px)";
+                    setTimeout(() => inner.style.transform = "translateX(0)", 200);
+                }
+            });
+            feedContainer.appendChild(card);
+        }
+
+        function createQuizPromptCard(levelName) {
+            const card = document.createElement('div');
+            card.className = 'word-card quiz-entry-card';
+            card.innerHTML = `
+                <div class="card-inner" style="border-color: var(--accent-color);">
+                    <div class="english-word">Level Complete!</div>
+                    <div style="color:rgba(255,255,255,0.7); padding:0 30px;">
+                        Take a quick quiz to verify your knowledge. <br><br>
+                        <strong>Score 8/10 to unlock the next level.</strong>
+                    </div>
+                    <button class="start-btn" onclick="initQuiz('${levelName}')">START QUIZ</button>
+                </div>
+            `;
+            feedContainer.appendChild(card);
+        }
+
+        // --- QUIZ ---
+        function initQuiz(levelName) {
+            let pool = [];
+            if (levelName === 'Favorites') {
+                pool = fullVocabulary.filter(w => favorites.includes(w.id));
+            } else {
+                pool = fullVocabulary.filter(w => w.cat === levelName);
+            }
+            if (pool.length < 4) { alert("Not enough words to generate a quiz."); return; }
+            pool.sort(() => Math.random() - 0.5);
+            quizQuestions = pool.slice(0, 10);
+            quizIndex = 0; quizScore = 0; currentQuizLevel = levelName;
+            document.getElementById('quiz-result').style.display = 'none';
+            document.getElementById('quiz-active').style.display = 'block';
+            document.getElementById('quiz-level-name').innerText = levelName === 'Favorites' ? 'Favorites Quiz' : levelName + " Quiz";
+            document.getElementById('feed-view').classList.remove('active');
+            document.getElementById('dashboard-view').classList.remove('active');
+            document.getElementById('quiz-view').classList.add('active');
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            if (quizIndex >= quizQuestions.length) { finishQuiz(); return; }
+            const currentWord = quizQuestions[quizIndex];
+            const pct = ((quizIndex) / quizQuestions.length) * 100;
+            document.getElementById('progress-fill').style.width = `${pct}%`;
+            document.getElementById('q-word').innerText = currentWord.en;
+            let options = [currentWord];
+            let allOtherWords = fullVocabulary.filter(w => w.id !== currentWord.id);
+            allOtherWords.sort(() => Math.random() - 0.5);
+            options.push(...allOtherWords.slice(0, 3));
+            options.sort(() => Math.random() - 0.5);
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = '';
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.tj;
+                btn.onclick = () => checkAnswer(opt.id, currentWord.id, btn);
+                grid.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedId, correctId, btnElement) {
+            const btns = document.querySelectorAll('.option-btn');
+            btns.forEach(b => b.disabled = true);
+            if (selectedId === correctId) {
+                btnElement.classList.add('correct');
+                quizScore++;
+                haptic('success');
+            } else {
+                btnElement.classList.add('wrong');
+                haptic('error');
+                btns.forEach(b => {
+                    if (b.innerText === fullVocabulary.find(w => w.id === correctId).tj) b.classList.add('correct');
+                });
+            }
+            setTimeout(() => { quizIndex++; renderQuestion(); }, 1200);
+        }
+
+        function finishQuiz() {
+            document.getElementById('quiz-active').style.display = 'none';
+            const resultDiv = document.getElementById('quiz-result');
+            resultDiv.style.display = 'flex';
+            const scoreDisplay = document.getElementById('score-display');
+            const title = document.getElementById('result-title');
+            const msg = document.getElementById('result-msg');
+            const btn = document.getElementById('quiz-action-btn');
+            scoreDisplay.innerText = `${quizScore}/${quizQuestions.length}`;
+            if (quizScore >= 8) {
+                scoreDisplay.style.borderColor = 'var(--success-color)';
+                title.innerText = "Level Complete!";
+                msg.innerText = "Excellent work. Next level unlocked.";
+                btn.innerText = "Continue";
+                triggerConfetti();
+                if (currentQuizLevel !== 'Favorites') unlockNextLevel(currentQuizLevel);
+            } else {
+                scoreDisplay.style.borderColor = 'var(--error-color)';
+                title.innerText = "Keep Practicing";
+                msg.innerText = "You need 8 correct answers to advance.";
+                btn.innerText = "Back to Menu";
+            }
+        }
+
+        function unlockNextLevel(current) {
+            const currNum = parseInt(current.replace(/\D/g, ''));
+            const nextLevelName = `Level ${currNum + 1}`;
+            const exists = fullVocabulary.some(w => w.cat === nextLevelName);
+            if (exists && !unlockedLevels.includes(nextLevelName)) {
+                unlockedLevels.push(nextLevelName);
+                localStorage.setItem('tajikUnlocked', JSON.stringify(unlockedLevels));
+                renderDashboard();
+            }
+        }
+
+        // --- UTILS ---
+        function toggleLike(id, btn) {
+            const index = favorites.indexOf(id);
+            if (index === -1) { favorites.push(id); if(btn) btn.classList.add('active'); haptic('light'); }
+            else { favorites.splice(index, 1); if(btn) btn.classList.remove('active'); }
+            localStorage.setItem('tajikFavorites', JSON.stringify(favorites));
+            renderDashboard(); 
+        }
+        function animateHeart(container) {
+            const heart = container.querySelector('.big-heart');
+            heart.classList.remove('animate-heart');
+            void heart.offsetWidth; 
+            heart.classList.add('animate-heart');
+        }
+        function speak(text) {
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'en-US'; u.rate = 0.9; 
+            window.speechSynthesis.speak(u);
+        }
+        function haptic(style = 'medium') {
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+                window.Telegram.WebApp.HapticFeedback.notificationOccurred(style === 'medium' ? 'success' : style);
+            }
+        }
+        function goHome() {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('dashboard-view').classList.add('active');
+            renderDashboard();
+        }
+        function triggerConfetti() {
+            var duration = 3000;
+            var end = Date.now() + duration;
+            (function frame() {
+                confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0, y: 0.8 }, colors: ['#00d2ff', '#FF2D55', '#ffffff'] });
+                confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1, y: 0.8 }, colors: ['#00d2ff', '#FF2D55', '#ffffff'] });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+
+        init();
+    </script>
+</body>
+</html>
