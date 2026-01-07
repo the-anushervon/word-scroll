@@ -23,14 +23,16 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+        /* FIX: Lock the body to prevent address bar from resizing/floating the layout */
         body {
             font-family: var(--font-stack);
-            background: #0f0c29;
-            background: linear-gradient(to bottom, #24243e, #1a1a2e, #0f0c29);
+            /* Fallback color if gradient fails */
+            background-color: #0f0c29; 
+            /* The Cool Gradient */
+            background-image: linear-gradient(to bottom, #24243e, #1a1a2e, #0f0c29);
             color: var(--text-primary);
             overflow: hidden;
-            /* FIX: Fixed positioning prevents 'float' bugs when address bar toggles */
-            position: fixed;
+            position: fixed; 
             top: 0; left: 0; right: 0; bottom: 0;
         }
 
@@ -41,7 +43,7 @@
         }
         .icon-fill { fill: currentColor; stroke: none; }
 
-        /* --- 2. ANIMATED BACKGROUND --- */
+        /* --- 2. ANIMATED BACKGROUND (Restored) --- */
         .background-blobs {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 0; overflow: hidden; pointer-events: none;
@@ -66,7 +68,6 @@
         .view { display: none; height: 100%; width: 100%; flex-direction: column; }
         .view.active { display: flex; }
 
-        /* Loader */
         #loader {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px;
@@ -85,9 +86,8 @@
             background: rgba(255, 59, 48, 0.15); border: 1px solid rgba(255, 59, 48, 0.3);
             color: #ff3b30; padding: 8px 12px; border-radius: 12px;
             font-size: 11px; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 0.5px; margin-left: 10px; cursor: pointer; transition: all 0.2s;
+            letter-spacing: 0.5px; margin-left: 10px; cursor: pointer;
         }
-        .reset-btn:active { background: rgba(255, 59, 48, 0.3); transform: scale(0.95); }
 
         .category-grid {
             display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
@@ -120,18 +120,20 @@
         .cat-card.locked { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
         .lock-icon { margin-bottom: 5px; opacity: 0.5; color: white; }
 
-        /* --- 5. FEED (SCROLL FIXES HERE) --- */
+        /* --- 5. FEED (RESTORED SNAP, REMOVED FLOAT) --- */
         .feed-container {
             height: 100%; 
             overflow-y: scroll; 
+            /* RESTORED SNAP */
             scroll-snap-type: y mandatory;
             -webkit-overflow-scrolling: touch; 
         }
         .feed-container::-webkit-scrollbar { display: none; }
 
         .word-card {
-            height: 100%; /* Fix to fill fixed body */
-            width: 100vw; 
+            /* FIXED: Use 100% of the fixed container, not vh */
+            height: 100%; 
+            width: 100%; 
             scroll-snap-align: start;
             scroll-snap-stop: always; 
             position: relative; 
@@ -150,8 +152,9 @@
             position: relative; 
             overflow: hidden; 
             text-align: center;
-            /* FIX: Prevents browser history swipes interfering with taps */
+            /* CRITICAL: pan-y allows scroll but lets JS capture taps instantly */
             touch-action: pan-y; 
+            user-select: none;
         }
 
         .english-word {
@@ -170,7 +173,7 @@
         }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); box-shadow: 0 0 20px var(--accent-color); } 100% { transform: scale(1); } }
 
-        /* --- 6. CONTROLS (SEPARATED LEFT/RIGHT) --- */
+        /* --- 6. CONTROLS (FIXED POSITIONS) --- */
         .sidebar-right {
             position: absolute; right: 20px; bottom: 20%;
             display: flex; flex-direction: column; gap: 20px; z-index: 20;
@@ -313,7 +316,7 @@
     </div>
 
     <script>
-        // --- ICONS (SVG STRINGS) ---
+        // --- ICONS ---
         const ICONS = {
             HEART: `<svg class="icon" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`,
             SPEAKER: `<svg class="icon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`,
@@ -330,7 +333,6 @@
         let favorites = JSON.parse(localStorage.getItem('tajikFavorites')) || [];
         let unlockedLevels = JSON.parse(localStorage.getItem('tajikUnlocked')) || ['Level 1'];
         
-        // Quiz State
         let quizQuestions = [];
         let quizIndex = 0;
         let quizScore = 0;
@@ -343,6 +345,9 @@
         async function init() {
             if (window.Telegram && window.Telegram.WebApp) {
                 window.Telegram.WebApp.expand();
+                // Ensure header color matches our gradient top
+                window.Telegram.WebApp.headerColor = '#24243e';
+                window.Telegram.WebApp.backgroundColor = '#0f0c29';
             }
             if (GOOGLE_SHEET_URL) {
                 loader.style.display = 'block';
@@ -383,11 +388,9 @@
             return result;
         }
 
-        // --- DASHBOARD ---
         function renderDashboard() {
             categoryGrid.innerHTML = '';
-
-            // Favorites
+            
             const favCard = document.createElement('div');
             favCard.className = 'cat-card fav-card';
             favCard.innerHTML = `
@@ -402,7 +405,6 @@
             };
             categoryGrid.appendChild(favCard);
 
-            // Levels Logic Fixed for Sorting
             const cats = [...new Set(fullVocabulary.map(w => w.cat))];
             cats.sort((a, b) => {
                 const numA = parseInt(a.replace(/\D/g, '')) || 0;
@@ -425,19 +427,16 @@
             });
         }
 
-        // --- RESET FUNCTION ---
         function resetProgress() {
-            if (confirm("Are you sure you want to RESET all progress? This will lock all levels and clear favorites.")) {
+            if (confirm("Are you sure you want to RESET all progress?")) {
                 localStorage.removeItem('tajikFavorites');
                 localStorage.removeItem('tajikUnlocked');
                 favorites = [];
                 unlockedLevels = ['Level 1'];
                 renderDashboard();
-                alert("All progress has been reset.");
             }
         }
 
-        // --- FEED LOGIC ---
         function loadCategory(catName) {
             if (catName === 'Favorites') {
                 currentQueue = fullVocabulary.filter(w => favorites.includes(w.id));
@@ -505,34 +504,37 @@
                 </div>
             `;
             
-            // FIX: Double Tap Logic for Touch Devices (Instant response)
-            let lastTapTime = 0;
+            // --- FIX: ROBUST DOUBLE TAP ---
+            let lastTap = 0;
             const inner = card.querySelector('.card-inner');
             
+            // We use 'touchend' because it fires even if the card is slightly moving (settling)
+            // 'click' often gets swallowed by the browser during scroll momentum
             inner.addEventListener('touchend', (e) => {
-                const currentTime = new Date().getTime();
-                const tapLength = currentTime - lastTapTime;
+                const now = new Date().getTime();
+                const diff = now - lastTap;
                 
-                if (tapLength < 300 && tapLength > 0) {
-                    e.preventDefault(); // Prevent zoom or other defaults
+                if (diff < 300 && diff > 0) {
+                    // It's a double tap!
+                    e.preventDefault(); // Stop zoom
+                    e.stopPropagation(); // Stop further events
                     toggleLike(word.id, document.getElementById(`btn-${word.id}`));
                     animateHeart(inner);
+                    lastTap = 0; // reset
+                } else {
+                    lastTap = now;
                 }
-                lastTapTime = currentTime;
             });
 
-            // Fallback for click (desktop testing)
+            // Backup for Desktop testing
             inner.addEventListener('click', (e) => {
-                // If the device supports touch, 'touchend' handled it, so we ignore click to prevent double firing if needed.
-                // But for desktop debugging we keep simple logic:
-                if (window.matchMedia("(pointer: coarse)").matches) return; 
-                
-                const currentTime = new Date().getTime();
-                if (currentTime - lastTapTime < 300) {
+                if (window.matchMedia("(pointer: coarse)").matches) return; // skip if touch
+                const now = new Date().getTime();
+                if (now - lastTap < 300) {
                      toggleLike(word.id, document.getElementById(`btn-${word.id}`));
                      animateHeart(inner);
                 }
-                lastTapTime = currentTime;
+                lastTap = now;
             });
 
             feedContainer.appendChild(card);
@@ -545,8 +547,7 @@
                 <div class="card-inner" style="border-color: var(--accent-color);">
                     <div class="english-word">Level Complete!</div>
                     <div style="color:rgba(255,255,255,0.7); padding:0 30px;">
-                        Take a quick quiz to verify your knowledge. <br><br>
-                        <strong>Score 8/10 to unlock the next level.</strong>
+                        Take a quick quiz to verify your knowledge.
                     </div>
                     <button class="start-btn" onclick="initQuiz('${levelName}')">START QUIZ</button>
                 </div>
@@ -562,13 +563,15 @@
             } else {
                 pool = fullVocabulary.filter(w => w.cat === levelName);
             }
-            if (pool.length < 4) { alert("Not enough words to generate a quiz."); return; }
+            if (pool.length < 4) { alert("Not enough words."); return; }
             pool.sort(() => Math.random() - 0.5);
             quizQuestions = pool.slice(0, 10);
             quizIndex = 0; quizScore = 0; currentQuizLevel = levelName;
+            
             document.getElementById('quiz-result').style.display = 'none';
             document.getElementById('quiz-active').style.display = 'block';
-            document.getElementById('quiz-level-name').innerText = levelName === 'Favorites' ? 'Favorites Quiz' : levelName + " Quiz";
+            document.getElementById('quiz-level-name').innerText = levelName === 'Favorites' ? 'Favorites' : levelName;
+            
             document.getElementById('feed-view').classList.remove('active');
             document.getElementById('dashboard-view').classList.remove('active');
             document.getElementById('quiz-view').classList.add('active');
@@ -581,11 +584,13 @@
             const pct = ((quizIndex) / quizQuestions.length) * 100;
             document.getElementById('progress-fill').style.width = `${pct}%`;
             document.getElementById('q-word').innerText = currentWord.en;
+            
             let options = [currentWord];
             let allOtherWords = fullVocabulary.filter(w => w.id !== currentWord.id);
             allOtherWords.sort(() => Math.random() - 0.5);
             options.push(...allOtherWords.slice(0, 3));
             options.sort(() => Math.random() - 0.5);
+            
             const grid = document.getElementById('options-grid');
             grid.innerHTML = '';
             options.forEach(opt => {
@@ -618,56 +623,45 @@
             document.getElementById('quiz-active').style.display = 'none';
             const resultDiv = document.getElementById('quiz-result');
             resultDiv.style.display = 'flex';
-            const scoreDisplay = document.getElementById('score-display');
-            const title = document.getElementById('result-title');
-            const msg = document.getElementById('result-msg');
-            const btn = document.getElementById('quiz-action-btn');
-            scoreDisplay.innerText = `${quizScore}/${quizQuestions.length}`;
+            document.getElementById('score-display').innerText = `${quizScore}/${quizQuestions.length}`;
+            
             if (quizScore >= 8) {
-                scoreDisplay.style.borderColor = 'var(--success-color)';
-                title.innerText = "Level Complete!";
-                msg.innerText = "Excellent work. Next level unlocked.";
-                btn.innerText = "Continue";
+                document.getElementById('result-title').innerText = "Level Complete!";
+                document.getElementById('result-msg').innerText = "Excellent work.";
+                document.getElementById('quiz-action-btn').innerText = "Continue";
+                document.getElementById('score-display').style.borderColor = 'var(--success-color)';
                 triggerConfetti();
                 if (currentQuizLevel !== 'Favorites') unlockNextLevel(currentQuizLevel);
             } else {
-                scoreDisplay.style.borderColor = 'var(--error-color)';
-                title.innerText = "Keep Practicing";
-                msg.innerText = "You need 8 correct answers to advance.";
-                btn.innerText = "Back to Menu";
+                document.getElementById('result-title').innerText = "Keep Practicing";
+                document.getElementById('result-msg').innerText = "You need 8 correct answers.";
+                document.getElementById('quiz-action-btn').innerText = "Back";
+                document.getElementById('score-display').style.borderColor = 'var(--error-color)';
             }
         }
 
-        // FIX: Next Level Logic now works with ANY category name
         function unlockNextLevel(currentCategoryName) {
             const allCats = [...new Set(fullVocabulary.map(w => w.cat))];
-            
-            // Sort exactly like Dashboard
             allCats.sort((a, b) => {
                 const numA = parseInt(a.replace(/\D/g, '')) || 0;
                 const numB = parseInt(b.replace(/\D/g, '')) || 0;
                 return numA - numB;
             });
-
-            // Find current index and get next
             const currentIndex = allCats.indexOf(currentCategoryName);
             if (currentIndex !== -1 && currentIndex < allCats.length - 1) {
                 const nextCat = allCats[currentIndex + 1];
                 if (!unlockedLevels.includes(nextCat)) {
                     unlockedLevels.push(nextCat);
                     localStorage.setItem('tajikUnlocked', JSON.stringify(unlockedLevels));
-                    renderDashboard();
                 }
             }
         }
 
-        // --- UTILS ---
         function toggleLike(id, btn) {
             const index = favorites.indexOf(id);
             if (index === -1) { favorites.push(id); if(btn) btn.classList.add('active'); haptic('medium'); }
             else { favorites.splice(index, 1); if(btn) btn.classList.remove('active'); }
             localStorage.setItem('tajikFavorites', JSON.stringify(favorites));
-            renderDashboard(); 
         }
         
         function animateHeart(container) {
@@ -678,15 +672,12 @@
         }
 
         function speak(text) {
-            // FIX: Cancel previous speech to prevent overlap
             window.speechSynthesis.cancel();
-            
             const u = new SpeechSynthesisUtterance(text);
             u.lang = 'en-US'; u.rate = 0.9; 
             window.speechSynthesis.speak(u);
         }
 
-        // FIX: Crash Fix for Haptic
         function haptic(style = 'medium') {
             if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
                 if (['error', 'success', 'warning'].includes(style)) {
