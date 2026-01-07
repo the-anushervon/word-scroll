@@ -33,6 +33,21 @@
             width: 100vw;
         }
 
+        /* --- ICONS --- */
+        .icon {
+            width: 24px;
+            height: 24px;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+        }
+        .icon-fill {
+            fill: currentColor;
+            stroke: none;
+        }
+
         /* --- 2. ANIMATED BACKGROUND --- */
         .background-blobs {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -106,7 +121,7 @@
         }
         .cat-card:active { transform: scale(0.96); background: rgba(255,255,255,0.2); }
         
-        .cat-name { font-weight: 700; font-size: 16px; z-index: 2; }
+        .cat-name { font-weight: 700; font-size: 16px; z-index: 2; margin-top: 5px; display: flex; align-items: center; gap: 6px; }
         .cat-progress { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
         .cat-card.fav-card {
@@ -121,7 +136,7 @@
         }
 
         .cat-card.locked { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
-        .lock-icon { font-size: 24px; margin-bottom: 5px; opacity: 0.5; }
+        .lock-icon { margin-bottom: 5px; opacity: 0.5; color: white; }
 
         /* --- 5. FEED --- */
         .feed-container {
@@ -170,10 +185,16 @@
         .action-btn {
             background: rgba(0,0,0,0.3); backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.1); color: white;
-            width: 50px; height: 50px; border-radius: 50%; font-size: 22px;
+            width: 50px; height: 50px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
         }
-        .action-btn.active { background: rgba(255, 45, 85, 0.2); color: var(--heart-color); border-color: var(--heart-color); }
+        
+        /* Heart Toggle Logic: Outline by default, Filled when active */
+        .action-btn.like-btn svg { fill: transparent; transition: fill 0.2s, stroke 0.2s; }
+        .action-btn.active.like-btn { background: rgba(255, 45, 85, 0.2); border-color: var(--heart-color); }
+        .action-btn.active.like-btn svg { fill: var(--heart-color); stroke: var(--heart-color); }
+
         .back-btn {
             position: absolute; top: 20px; left: 20px; z-index: 50;
             background: rgba(0,0,0,0.2); border: none; color: white;
@@ -221,8 +242,11 @@
         /* --- 8. ANIMATIONS --- */
         .big-heart {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
-            font-size: 100px; color: var(--heart-color); pointer-events: none; opacity: 0; z-index: 50;
+            pointer-events: none; opacity: 0; z-index: 50;
+            color: var(--heart-color);
         }
+        .big-heart svg { width: 120px; height: 120px; fill: var(--heart-color); stroke: none; }
+        
         .animate-heart { animation: popHeart 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         @keyframes popHeart {
             0% { transform: translate(-50%, -50%) scale(0) rotate(-45deg); opacity: 0; }
@@ -289,6 +313,13 @@
     </div>
 
     <script>
+        // --- ICONS (SVG STRINGS) ---
+        const ICONS = {
+            HEART: `<svg class="icon" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`,
+            SPEAKER: `<svg class="icon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`,
+            LOCK: `<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`
+        };
+
         // CONFIG
         const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQMIwv2mhwpTESnRX_hwLdsf29F4RTs7AyevWeqlO2Lo6bsMsTCvAG49wiZyvY_AaY9FWejVnvpe1U/pub?output=csv"; 
         const BATCH_SIZE = 5; 
@@ -359,8 +390,9 @@
             // Favorites
             const favCard = document.createElement('div');
             favCard.className = 'cat-card fav-card';
+            // Replaced Emoji with Icon
             favCard.innerHTML = `
-                <div><div class="cat-name">❤️ Favorites</div><div class="cat-progress">${favorites.length} Saved</div></div>
+                <div><div class="cat-name"><span style="color:var(--heart-color); display:flex; align-items:center">${ICONS.HEART.replace('class="icon"', 'class="icon icon-fill" style="width:18px;height:18px;"')}</span> Favorites</div><div class="cat-progress">${favorites.length} Saved</div></div>
                 <button class="fav-quiz-btn" id="fav-quiz-trigger">Quiz</button>
             `;
             favCard.onclick = (e) => { if(e.target.id !== 'fav-quiz-trigger') loadCategory('Favorites'); };
@@ -385,7 +417,8 @@
                 const div = document.createElement('div');
                 div.className = `cat-card ${isLocked ? 'locked' : ''}`;
                 if (isLocked) {
-                    div.innerHTML = `<div class="lock-icon">🔒</div><div class="cat-name">${cat}</div>`;
+                    // Replaced Lock Emoji with Icon
+                    div.innerHTML = `<div class="lock-icon">${ICONS.LOCK}</div><div class="cat-name">${cat}</div>`;
                 } else {
                     div.innerHTML = `<div class="cat-name">${cat}</div><div class="cat-progress">${count} Words</div>`;
                     div.onclick = () => loadCategory(cat);
@@ -453,16 +486,21 @@
             card.className = 'word-card';
             const isFav = favorites.includes(word.id);
             const enText = word.en.replace(/'/g, "\\'");
+            // Replaced Emojis with ICONS.HEART and ICONS.SPEAKER
             card.innerHTML = `
                 <div class="card-inner">
                     <div class="english-word">${word.en}</div>
                     <div class="tajik-word">${word.tj}</div>
-                    <div class="big-heart">❤️</div>
+                    <div class="big-heart">${ICONS.HEART}</div>
                     <div class="hint">Swipe Left to Speak</div>
                 </div>
                 <div class="sidebar">
-                    <button class="action-btn ${isFav ? 'active' : ''}" id="btn-${word.id}" onclick="toggleLike(${word.id}, this)">❤️</button>
-                    <button class="action-btn" onclick="speak('${enText}')">🔊</button>
+                    <button class="action-btn like-btn ${isFav ? 'active' : ''}" id="btn-${word.id}" onclick="toggleLike(${word.id}, this)">
+                        ${ICONS.HEART}
+                    </button>
+                    <button class="action-btn" onclick="speak('${enText}')">
+                        ${ICONS.SPEAKER}
+                    </button>
                 </div>
             `;
             let lastTap = 0;
