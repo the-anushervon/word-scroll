@@ -11,29 +11,29 @@
         /* --- 1. RESET & VARS --- */
         :root {
             --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
             --accent-color: #00d2ff;
             --heart-color: #FF2D55;
             --success-color: #4cd964;
             --error-color: #ff3b30;
             --text-primary: #ffffff;
             --text-secondary: rgba(255, 255, 255, 0.6);
+            /* Dynamic Height Variable for Stability */
+            --app-height: 100vh;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-        /* FIX: Lock the body to prevent address bar from resizing/floating the layout */
         body {
             font-family: var(--font-stack);
-            /* Fallback color if gradient fails */
             background-color: #0f0c29; 
-            /* The Cool Gradient */
             background-image: linear-gradient(to bottom, #24243e, #1a1a2e, #0f0c29);
             color: var(--text-primary);
-            overflow: hidden;
-            position: fixed; 
-            top: 0; left: 0; right: 0; bottom: 0;
+            overflow: hidden; /* Prevents body scroll */
+            position: fixed; /* Locks body in place */
+            width: 100%;
+            height: 100%;
         }
 
         /* --- ICONS --- */
@@ -43,7 +43,7 @@
         }
         .icon-fill { fill: currentColor; stroke: none; }
 
-        /* --- 2. ANIMATED BACKGROUND (Restored) --- */
+        /* --- 2. ANIMATED BACKGROUND --- */
         .background-blobs {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 0; overflow: hidden; pointer-events: none;
@@ -64,52 +64,61 @@
         }
 
         /* --- 3. APP CONTAINER & VIEWS --- */
-        #app { position: relative; z-index: 10; height: 100%; width: 100%; }
+        #app { 
+            position: relative; z-index: 10; 
+            width: 100%; 
+            height: var(--app-height); /* Uses JS calculated height for stability */
+            overflow: hidden;
+        }
+        
         .view { display: none; height: 100%; width: 100%; flex-direction: column; }
         .view.active { display: flex; }
 
         #loader {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px;
-            z-index: 1000; display: none; backdrop-filter: blur(10px);
+            z-index: 1000; display: none; backdrop-filter: blur(10px); color: white;
         }
 
         /* --- 4. DASHBOARD --- */
         .dashboard-header { 
             padding: 40px 20px 20px 20px; 
             display: flex; justify-content: space-between; align-items: flex-start;
+            flex-shrink: 0;
         }
-        .header-text h1 { font-size: 32px; font-weight: 800; }
-        .header-text p { color: var(--text-secondary); margin-top: 5px; font-size: 15px; }
+        .header-text h1 { font-size: 32px; font-weight: 800; margin-bottom: 5px; }
+        .header-text p { color: var(--text-secondary); font-size: 15px; }
 
         .reset-btn {
             background: rgba(255, 59, 48, 0.15); border: 1px solid rgba(255, 59, 48, 0.3);
             color: #ff3b30; padding: 8px 12px; border-radius: 12px;
             font-size: 11px; font-weight: 700; text-transform: uppercase;
-            letter-spacing: 0.5px; margin-left: 10px; cursor: pointer;
+            letter-spacing: 0.5px; cursor: pointer;
         }
 
         .category-grid {
             display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-            padding: 10px 20px 100px 20px; overflow-y: auto;
+            padding: 10px 20px 100px 20px; 
+            overflow-y: auto;
+            flex-grow: 1;
         }
 
         .cat-card {
-            background: var(--glass-bg); backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border); border-radius: 16px;
+            background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: 20px;
             height: 100px; display: flex; flex-direction: column;
             justify-content: center; align-items: center;
-            position: relative; overflow: hidden; transition: transform 0.15s ease;
+            position: relative; overflow: hidden; transition: transform 0.1s;
         }
-        .cat-card:active { transform: scale(0.96); background: rgba(255,255,255,0.2); }
+        .cat-card:active { transform: scale(0.98); background: rgba(255,255,255,0.1); }
         
-        .cat-name { font-weight: 700; font-size: 16px; z-index: 2; margin-top: 5px; display: flex; align-items: center; gap: 6px; }
+        .cat-name { font-weight: 700; font-size: 16px; z-index: 2; display: flex; align-items: center; gap: 6px; }
         .cat-progress { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
         .cat-card.fav-card {
             grid-column: span 2; 
-            background: linear-gradient(45deg, rgba(255, 45, 85, 0.2), rgba(255, 45, 85, 0.1));
-            border-color: rgba(255, 45, 85, 0.3);
+            background: linear-gradient(135deg, rgba(255, 45, 85, 0.15), rgba(255, 45, 85, 0.05));
+            border-color: rgba(255, 45, 85, 0.2);
             flex-direction: row; justify-content: space-between; padding: 0 25px;
         }
         .fav-quiz-btn {
@@ -117,22 +126,22 @@
             padding: 8px 16px; border-radius: 20px; border: none;
         }
 
-        .cat-card.locked { opacity: 0.6; pointer-events: none; filter: grayscale(1); }
-        .lock-icon { margin-bottom: 5px; opacity: 0.5; color: white; }
+        .cat-card.locked { opacity: 0.5; pointer-events: none; filter: grayscale(1); }
+        .lock-icon { margin-bottom: 5px; opacity: 0.7; color: white; }
 
-        /* --- 5. FEED (RESTORED SNAP, REMOVED FLOAT) --- */
+        /* --- 5. FEED (FIXED SCROLL PHYSICS) --- */
         .feed-container {
             height: 100%; 
             overflow-y: scroll; 
-            /* RESTORED SNAP */
             scroll-snap-type: y mandatory;
-            -webkit-overflow-scrolling: touch; 
+            scroll-behavior: auto; /* Ensure native physics */
+            overscroll-behavior-y: none; /* Prevents rubber banding */
         }
         .feed-container::-webkit-scrollbar { display: none; }
 
         .word-card {
-            /* FIXED: Use 100% of the fixed container, not vh */
-            height: 100%; 
+            /* STABILITY FIX: Use variable height instead of 100svh */
+            height: var(--app-height);
             width: 100%; 
             scroll-snap-align: start;
             scroll-snap-stop: always; 
@@ -140,65 +149,129 @@
             display: flex; 
             align-items: center; 
             justify-content: center;
+            /* Force GPU acceleration */
+            transform: translateZ(0);
+        }
+
+        /* --- ANIMATION LEVEL 1: ENTRANCE ANIMATIONS --- */
+        /* Default state: Hidden or offset */
+        .word-card .english-word { opacity: 0; transform: scale(0.8); transition: all 0.1s; }
+        .word-card .tajik-word { opacity: 0; transform: translateY(20px); transition: all 0.1s; }
+        
+        /* Active State (Triggered by Observer) */
+        .word-card.in-view .english-word {
+            animation: textPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .word-card.in-view .tajik-word {
+            animation: textSlide 0.6s 0.2s ease-out forwards;
+        }
+        
+        /* Glint Effect */
+        .word-card.in-view .card-inner::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent);
+            transform: skewX(-25deg);
+            animation: glint 3s infinite 1s; 
+            pointer-events: none;
+        }
+
+        @keyframes textPop {
+            from { opacity: 0; transform: scale(0.8) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes textSlide {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes glint {
+            0% { left: -100%; }
+            20% { left: 200%; } 
+            100% { left: 200%; }
+        }
+
+        /* --- ANIMATION LEVEL 3: FLOATING ICONS --- */
+        .float-bg {
+            position: absolute;
+            top: 10%;
+            right: 10%;
+            font-size: 100px;
+            opacity: 0.05; 
+            animation: floatIcon 6s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        @keyframes floatIcon {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            50% { transform: translate(-20px, 30px) rotate(10deg); }
         }
 
         .card-inner {
-            background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(30px);
+            background: rgba(255, 255, 255, 0.08); 
+            backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            width: 88%; height: 75%; border-radius: 32px;
+            width: 90%; height: 78%; border-radius: 36px;
             display: flex; flex-direction: column; align-items: center;
-            justify-content: center; gap: 25px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            justify-content: center; gap: 20px;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
             position: relative; 
             overflow: hidden; 
             text-align: center;
-            /* CRITICAL: pan-y allows scroll but lets JS capture taps instantly */
+            /* Interaction Fixes */
             touch-action: pan-y; 
-            user-select: none;
+            user-select: none; -webkit-user-select: none;
+            
+            /* LEVEL 2: Prepare for 3D Transforms */
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         .english-word {
-            font-size: 48px; font-weight: 900; letter-spacing: -1px; line-height: 1.1;
-            padding: 0 20px;
-            background: linear-gradient(135deg, #ffffff 0%, #dcdcdc 100%);
+            font-size: 42px; font-weight: 900; letter-spacing: -0.5px; line-height: 1.1;
+            padding: 0 15px;
+            background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            position: relative; z-index: 1;
         }
-        .tajik-word { font-size: 32px; font-weight: 500; color: var(--accent-color); }
+        .tajik-word { 
+            font-size: 32px; font-weight: 500; color: var(--accent-color); margin-top: 10px; 
+            position: relative; z-index: 1;
+        }
 
-        .quiz-entry-card .english-word { font-size: 32px; -webkit-text-fill-color: white; }
+        .quiz-entry-card .english-word { font-size: 28px; -webkit-text-fill-color: white; }
         .quiz-entry-card .start-btn {
             background: var(--accent-color); color: #000; padding: 15px 40px;
             border-radius: 30px; border: none; font-weight: 800; font-size: 18px;
-            margin-top: 20px; animation: pulse 2s infinite;
+            margin-top: 20px; animation: pulse 2s infinite; position: relative; z-index: 2;
         }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); box-shadow: 0 0 20px var(--accent-color); } 100% { transform: scale(1); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(0, 210, 255, 0.4); } 100% { transform: scale(1); } }
 
-        /* --- 6. CONTROLS (FIXED POSITIONS) --- */
-        .sidebar-right {
-            position: absolute; right: 20px; bottom: 20%;
+        /* --- 6. CONTROLS --- */
+        .sidebar-right, .sidebar-left {
+            position: absolute; bottom: 22%;
             display: flex; flex-direction: column; gap: 20px; z-index: 20;
         }
-        .sidebar-left {
-            position: absolute; left: 20px; bottom: 20%;
-            display: flex; flex-direction: column; gap: 20px; z-index: 20;
-        }
+        .sidebar-right { right: 20px; }
+        .sidebar-left { left: 20px; }
 
         .action-btn {
-            background: rgba(0,0,0,0.3); backdrop-filter: blur(10px);
+            background: rgba(0,0,0,0.3); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.1); color: white;
-            width: 50px; height: 50px; border-radius: 50%;
+            width: 52px; height: 52px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s;
+            transition: transform 0.1s, background 0.2s;
         }
+        .action-btn:active { transform: scale(0.9); }
         
         .action-btn.like-btn svg { fill: transparent; transition: fill 0.2s, stroke 0.2s; }
-        .action-btn.active.like-btn { background: rgba(255, 45, 85, 0.2); border-color: var(--heart-color); }
+        .action-btn.active.like-btn { background: rgba(255, 45, 85, 0.25); border-color: var(--heart-color); }
         .action-btn.active.like-btn svg { fill: var(--heart-color); stroke: var(--heart-color); }
 
         .back-btn {
             position: absolute; top: 20px; left: 20px; z-index: 50;
-            background: rgba(0,0,0,0.2); border: none; color: white;
-            padding: 10px 18px; border-radius: 20px; font-weight: 600; backdrop-filter: blur(10px);
+            background: rgba(0,0,0,0.3); border: none; color: white;
+            padding: 10px 18px; border-radius: 20px; font-weight: 600; 
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         }
 
         /* --- 7. QUIZ VIEW --- */
@@ -210,34 +283,35 @@
         }
         
         .progress-container { width: 100%; display: flex; justify-content: center; padding-bottom: 30px; }
-        .progress-track { width: 60%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 10px; overflow: hidden; margin: 0 auto; }
-        .progress-fill { height: 100%; background: var(--accent-color); width: 0%; transition: width 0.3s; }
+        .progress-track { width: 60%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--accent-color); width: 0%; transition: width 0.3s ease-out; }
 
         .question-card {
-            background: rgba(255,255,255,0.1); backdrop-filter: blur(30px);
-            border-radius: 24px; padding: 30px 20px; width: 100%; max-width: 500px;
-            text-align: center; margin: auto;
+            background: rgba(255,255,255,0.08); backdrop-filter: blur(40px);
+            border-radius: 30px; padding: 30px 20px; width: 100%; max-width: 500px;
+            text-align: center; margin: auto; border: 1px solid rgba(255,255,255,0.1);
         }
-        .q-label { text-transform: uppercase; font-size: 12px; letter-spacing: 2px; color: var(--accent-color); margin-bottom: 10px; }
+        .q-label { text-transform: uppercase; font-size: 11px; letter-spacing: 2px; color: var(--accent-color); margin-bottom: 15px; opacity: 0.8; }
         .q-word { font-size: 36px; font-weight: 800; margin-bottom: 30px; }
 
-        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; }
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
         .option-btn {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);
-            padding: 20px; border-radius: 16px; color: white; font-size: 18px; font-weight: 600;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15);
+            padding: 18px; border-radius: 18px; color: white; font-size: 16px; font-weight: 600;
         }
+        .option-btn:active { background: rgba(255,255,255,0.1); }
         .option-btn.correct { background: var(--success-color); border-color: var(--success-color); }
         .option-btn.wrong { background: var(--error-color); border-color: var(--error-color); opacity: 0.5; }
 
         .result-container { text-align: center; display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
         .score-circle { 
-            width: 150px; height: 150px; border-radius: 50%; border: 5px solid var(--accent-color);
-            display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 800;
-            margin-bottom: 20px; background: rgba(0,0,0,0.2);
+            width: 140px; height: 140px; border-radius: 50%; border: 6px solid var(--accent-color);
+            display: flex; align-items: center; justify-content: center; font-size: 42px; font-weight: 800;
+            margin-bottom: 25px; background: rgba(0,0,0,0.2);
         }
         .result-title { font-size: 28px; font-weight: 800; margin-bottom: 10px; }
-        .result-msg { color: var(--text-secondary); margin-bottom: 30px; }
-        .next-lvl-btn { background: var(--success-color); color: white; padding: 15px 30px; border-radius: 30px; border: none; font-size: 18px; font-weight: 700; }
+        .result-msg { color: var(--text-secondary); margin-bottom: 30px; max-width: 80%; line-height: 1.5; }
+        .next-lvl-btn { background: var(--success-color); color: white; padding: 16px 36px; border-radius: 30px; border: none; font-size: 18px; font-weight: 700; }
 
         /* --- 8. ANIMATIONS --- */
         .big-heart {
@@ -267,7 +341,7 @@
         <div class="blob blob-3"></div>
     </div>
 
-    <div id="loader">Syncing Database...</div>
+    <div id="loader">Syncing...</div>
 
     <div id="app">
         
@@ -275,7 +349,7 @@
             <div class="dashboard-header">
                 <div class="header-text">
                     <h1>Word Scroll</h1>
-                    <p>Scroll words. Pass quizzes. Unlock levels.</p>
+                    <p>English - Tajik Vocabulary</p>
                 </div>
                 <button class="reset-btn" onclick="resetProgress()">Reset</button>
             </div>
@@ -291,7 +365,7 @@
             <div id="quiz-active">
                 <div class="quiz-header">
                     <div style="font-weight:700" id="quiz-level-name">Level X</div>
-                    <button onclick="goHome()" style="background:none; border:none; color:white; font-size:24px;">×</button>
+                    <button onclick="goHome()" style="background:none; border:none; color:white; font-size:28px;">×</button>
                 </div>
                 
                 <div class="progress-container">
@@ -299,8 +373,8 @@
                 </div>
 
                 <div class="question-card">
-                    <div class="q-label">Translate this</div>
-                    <div class="q-word" id="q-word">Word</div>
+                    <div class="q-label">Translate</div>
+                    <div class="q-word" id="q-word">...</div>
                     <div class="options-grid" id="options-grid"></div>
                 </div>
             </div>
@@ -338,15 +412,36 @@
         let quizScore = 0;
         let currentQuizLevel = "";
 
+        // UI REFS
         const feedContainer = document.getElementById('feed-container');
         const categoryGrid = document.getElementById('category-grid');
         const loader = document.getElementById('loader');
 
+        // --- STABILITY FIX: DYNAMIC VIEWPORT HEIGHT ---
+        function setAppHeight() {
+            // This calculates 1% of the viewport height (ignoring dynamic toolbars) and sets it as px
+            const vh = window.innerHeight;
+            document.documentElement.style.setProperty('--app-height', `${vh}px`);
+        }
+        window.addEventListener('resize', setAppHeight);
+        setAppHeight(); // Call on load
+
+        // --- ANIMATION LEVEL 1: INTERSECTION OBSERVER ---
+        const cardObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('in-view');
+                } else {
+                    entry.target.classList.remove('in-view');
+                }
+            });
+        }, { threshold: 0.6 });
+
+        // --- INIT ---
         async function init() {
             if (window.Telegram && window.Telegram.WebApp) {
                 window.Telegram.WebApp.expand();
-                // Ensure header color matches our gradient top
-                window.Telegram.WebApp.headerColor = '#24243e';
+                window.Telegram.WebApp.headerColor = '#0f0c29';
                 window.Telegram.WebApp.backgroundColor = '#0f0c29';
             }
             if (GOOGLE_SHEET_URL) {
@@ -366,7 +461,6 @@
                 fullVocabulary = parseCSV(csvText);
             } catch (error) {
                 console.error("Fetch failed", error);
-                alert("Error loading data.");
             }
         }
 
@@ -391,6 +485,7 @@
         function renderDashboard() {
             categoryGrid.innerHTML = '';
             
+            // Favorites Card
             const favCard = document.createElement('div');
             favCard.className = 'cat-card fav-card';
             favCard.innerHTML = `
@@ -405,7 +500,9 @@
             };
             categoryGrid.appendChild(favCard);
 
+            // Categories
             const cats = [...new Set(fullVocabulary.map(w => w.cat))];
+            // Sort levels numerically
             cats.sort((a, b) => {
                 const numA = parseInt(a.replace(/\D/g, '')) || 0;
                 const numB = parseInt(b.replace(/\D/g, '')) || 0;
@@ -428,7 +525,7 @@
         }
 
         function resetProgress() {
-            if (confirm("Are you sure you want to RESET all progress?")) {
+            if (confirm("Reset all progress?")) {
                 localStorage.removeItem('tajikFavorites');
                 localStorage.removeItem('tajikUnlocked');
                 favorites = [];
@@ -445,9 +542,12 @@
                 currentQueue = fullVocabulary.filter(w => w.cat === catName);
                 currentQueue.sort(() => Math.random() - 0.5); 
             }
+            
+            // Add Quiz prompt at end
             if (catName !== 'Favorites' || currentQueue.length >= 5) {
                 currentQueue.push({ type: 'quiz_prompt', cat: catName });
             }
+
             feedContainer.innerHTML = '';
             feedContainer.scrollTop = 0;
             renderBatch(0, BATCH_SIZE);
@@ -458,7 +558,7 @@
 
         function handleScroll() {
             const { scrollTop, scrollHeight, clientHeight } = feedContainer;
-            if (scrollTop + clientHeight >= scrollHeight - clientHeight) {
+            if (scrollTop + clientHeight >= scrollHeight - 50) {
                 const currentCount = feedContainer.childElementCount;
                 if (currentCount < currentQueue.length) {
                     renderBatch(currentCount, BATCH_SIZE);
@@ -482,13 +582,20 @@
             const card = document.createElement('div');
             card.className = 'word-card';
             const isFav = favorites.includes(word.id);
-            const enText = word.en.replace(/'/g, "\\'");
+            const enText = word.en.replace(/'/g, "\\'"); // Escape for JS
+
+            // --- ANIMATION LEVEL 3: RANDOM FLOATING EMOJI ---
+            const bgs = ['💡', '✨', '🔥', '🎯', '🚀', '🧠', '⚡️', '🌟', '💎'];
+            const randomBg = bgs[Math.floor(Math.random() * bgs.length)];
+            
             card.innerHTML = `
                 <div class="card-inner">
+                    <div class="float-bg">${randomBg}</div>
+
                     <div class="english-word">${word.en}</div>
                     <div class="tajik-word">${word.tj}</div>
                     <div class="big-heart">${ICONS.HEART}</div>
-                    <div class="hint" style="font-size: 10px; opacity: 0.5; margin-top: 10px;">Double tap to like</div>
+                    <div style="font-size: 10px; opacity: 0.4; margin-top: 15px; position:relative; z-index:1">Double tap to like</div>
                 </div>
                 
                 <div class="sidebar-left">
@@ -504,31 +611,30 @@
                 </div>
             `;
             
-            // --- FIX: ROBUST DOUBLE TAP ---
+            // --- OPTIMIZED DOUBLE TAP LOGIC ---
             let lastTap = 0;
             const inner = card.querySelector('.card-inner');
             
-            // We use 'touchend' because it fires even if the card is slightly moving (settling)
-            // 'click' often gets swallowed by the browser during scroll momentum
             inner.addEventListener('touchend', (e) => {
                 const now = new Date().getTime();
                 const diff = now - lastTap;
                 
                 if (diff < 300 && diff > 0) {
-                    // It's a double tap!
-                    e.preventDefault(); // Stop zoom
-                    e.stopPropagation(); // Stop further events
-                    toggleLike(word.id, document.getElementById(`btn-${word.id}`));
+                    e.preventDefault(); 
+                    // e.stopPropagation(); // Removed to ensure tilt reset works
+                    
+                    const btn = document.getElementById(`btn-${word.id}`);
+                    toggleLike(word.id, btn);
                     animateHeart(inner);
-                    lastTap = 0; // reset
+                    lastTap = 0; 
                 } else {
                     lastTap = now;
                 }
             });
 
-            // Backup for Desktop testing
-            inner.addEventListener('click', (e) => {
-                if (window.matchMedia("(pointer: coarse)").matches) return; // skip if touch
+            // Desktop testing fallback
+            inner.addEventListener('click', () => {
+                if (window.matchMedia("(pointer: coarse)").matches) return;
                 const now = new Date().getTime();
                 if (now - lastTap < 300) {
                      toggleLike(word.id, document.getElementById(`btn-${word.id}`));
@@ -536,6 +642,32 @@
                 }
                 lastTap = now;
             });
+
+            // --- ANIMATION LEVEL 2: 3D HOLOGRAPHIC TILT ---
+            card.addEventListener('touchmove', (e) => {
+                // Get touch position relative to the card center
+                const touch = e.touches[0];
+                const cardRect = card.getBoundingClientRect();
+                const centerX = cardRect.left + cardRect.width / 2;
+                const centerY = cardRect.top + cardRect.height / 2;
+                
+                // Calculate rotation (max 10 degrees)
+                const rotateX = ((touch.clientY - centerY) / (cardRect.height / 2)) * -10;
+                const rotateY = ((touch.clientX - centerX) / (cardRect.width / 2)) * 10;
+
+                // Remove transition for instant follow
+                inner.style.transition = 'none';
+                inner.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+            });
+
+            card.addEventListener('touchend', () => {
+                // Add transition back for smooth reset
+                inner.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                inner.style.transform = `perspective(1000px) rotateX(0) rotateY(0) scale(1)`;
+            });
+
+            // --- ANIMATION LEVEL 1: ATTACH OBSERVER ---
+            cardObserver.observe(card);
 
             feedContainer.appendChild(card);
         }
@@ -546,16 +678,18 @@
             card.innerHTML = `
                 <div class="card-inner" style="border-color: var(--accent-color);">
                     <div class="english-word">Level Complete!</div>
-                    <div style="color:rgba(255,255,255,0.7); padding:0 30px;">
+                    <div style="color:rgba(255,255,255,0.7); padding:0 30px; margin-top:10px;">
                         Take a quick quiz to verify your knowledge.
                     </div>
                     <button class="start-btn" onclick="initQuiz('${levelName}')">START QUIZ</button>
                 </div>
             `;
+            // Observe the quiz card too for entrance animation
+            cardObserver.observe(card);
             feedContainer.appendChild(card);
         }
 
-        // --- QUIZ ---
+        // --- QUIZ LOGIC ---
         function initQuiz(levelName) {
             let pool = [];
             if (levelName === 'Favorites') {
@@ -563,7 +697,7 @@
             } else {
                 pool = fullVocabulary.filter(w => w.cat === levelName);
             }
-            if (pool.length < 4) { alert("Not enough words."); return; }
+            if (pool.length < 4) { alert("Not enough words in this category."); return; }
             pool.sort(() => Math.random() - 0.5);
             quizQuestions = pool.slice(0, 10);
             quizIndex = 0; quizScore = 0; currentQuizLevel = levelName;
@@ -585,6 +719,7 @@
             document.getElementById('progress-fill').style.width = `${pct}%`;
             document.getElementById('q-word').innerText = currentWord.en;
             
+            // Generate Options
             let options = [currentWord];
             let allOtherWords = fullVocabulary.filter(w => w.id !== currentWord.id);
             allOtherWords.sort(() => Math.random() - 0.5);
@@ -616,7 +751,7 @@
                     if (b.innerText === fullVocabulary.find(w => w.id === correctId).tj) b.classList.add('correct');
                 });
             }
-            setTimeout(() => { quizIndex++; renderQuestion(); }, 1200);
+            setTimeout(() => { quizIndex++; renderQuestion(); }, 1000);
         }
 
         function finishQuiz() {
@@ -626,16 +761,16 @@
             document.getElementById('score-display').innerText = `${quizScore}/${quizQuestions.length}`;
             
             if (quizScore >= 8) {
-                document.getElementById('result-title').innerText = "Level Complete!";
-                document.getElementById('result-msg').innerText = "Excellent work.";
+                document.getElementById('result-title').innerText = "Level Unlocked!";
+                document.getElementById('result-msg').innerText = "Great job! You've mastered this section.";
                 document.getElementById('quiz-action-btn').innerText = "Continue";
                 document.getElementById('score-display').style.borderColor = 'var(--success-color)';
                 triggerConfetti();
                 if (currentQuizLevel !== 'Favorites') unlockNextLevel(currentQuizLevel);
             } else {
-                document.getElementById('result-title').innerText = "Keep Practicing";
-                document.getElementById('result-msg').innerText = "You need 8 correct answers.";
-                document.getElementById('quiz-action-btn').innerText = "Back";
+                document.getElementById('result-title').innerText = "Almost There";
+                document.getElementById('result-msg').innerText = "You need 8 correct answers to unlock the next level.";
+                document.getElementById('quiz-action-btn').innerText = "Try Again";
                 document.getElementById('score-display').style.borderColor = 'var(--error-color)';
             }
         }
@@ -657,18 +792,26 @@
             }
         }
 
+        // --- INTERACTIONS ---
         function toggleLike(id, btn) {
             const index = favorites.indexOf(id);
-            if (index === -1) { favorites.push(id); if(btn) btn.classList.add('active'); haptic('medium'); }
-            else { favorites.splice(index, 1); if(btn) btn.classList.remove('active'); }
+            if (index === -1) { 
+                favorites.push(id); 
+                if(btn) btn.classList.add('active'); 
+                haptic('medium'); 
+            } else { 
+                favorites.splice(index, 1); 
+                if(btn) btn.classList.remove('active'); 
+            }
             localStorage.setItem('tajikFavorites', JSON.stringify(favorites));
         }
         
         function animateHeart(container) {
             const heart = container.querySelector('.big-heart');
             heart.classList.remove('animate-heart');
-            void heart.offsetWidth; 
+            void heart.offsetWidth; // Trigger reflow
             heart.classList.add('animate-heart');
+            haptic('heavy');
         }
 
         function speak(text) {
@@ -695,7 +838,7 @@
         }
         
         function triggerConfetti() {
-            var duration = 3000;
+            var duration = 2000;
             var end = Date.now() + duration;
             (function frame() {
                 confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0, y: 0.8 }, colors: ['#00d2ff', '#FF2D55', '#ffffff'] });
