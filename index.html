@@ -157,6 +157,7 @@
         /* Default state: Hidden or offset */
         .word-card .english-word { opacity: 0; transform: scale(0.8); transition: all 0.1s; }
         .word-card .tajik-word { opacity: 0; transform: translateY(20px); transition: all 0.1s; }
+        .word-card .russian-word { opacity: 0; transform: translateY(20px); transition: all 0.1s; }
         
         /* Active State (Triggered by Observer) */
         .word-card.in-view .english-word {
@@ -164,6 +165,9 @@
         }
         .word-card.in-view .tajik-word {
             animation: textSlide 0.6s 0.2s ease-out forwards;
+        }
+        .word-card.in-view .russian-word {
+            animation: textSlide 0.6s 0.3s ease-out forwards;
         }
         
         /* Glint Effect */
@@ -213,7 +217,7 @@
             border: 1px solid rgba(255, 255, 255, 0.15);
             width: 90%; height: 78%; border-radius: 36px;
             display: flex; flex-direction: column; align-items: center;
-            justify-content: center; gap: 20px;
+            justify-content: center; gap: 15px; /* Reduced gap slightly to fit Russian */
             box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
             position: relative; 
             overflow: hidden; 
@@ -234,8 +238,12 @@
             position: relative; z-index: 1;
         }
         .tajik-word { 
-            font-size: 32px; font-weight: 500; color: var(--accent-color); margin-top: 10px; 
+            font-size: 32px; font-weight: 500; color: var(--accent-color); margin-top: 5px; 
             position: relative; z-index: 1;
+        }
+        .russian-word {
+            font-size: 20px; font-weight: 400; color: rgba(255, 255, 255, 0.7); margin-top: 0px;
+            position: relative; z-index: 1; font-style: italic;
         }
 
         .quiz-entry-card .english-word { font-size: 28px; -webkit-text-fill-color: white; }
@@ -349,7 +357,7 @@
             <div class="dashboard-header">
                 <div class="header-text">
                     <h1>Word Scroll</h1>
-                    <p>English - Tajik Vocabulary</p>
+                    <p>English - Tajik - Russian</p>
                 </div>
                 <button class="reset-btn" onclick="resetProgress()">Reset</button>
             </div>
@@ -449,7 +457,7 @@
                 await fetchWords();
                 loader.style.display = 'none';
             } else {
-                fullVocabulary = [{id:1, cat:'Level 1', en:'Hello', tj:'Салом'}];
+                fullVocabulary = [{id:1, cat:'Level 1', en:'Hello', tj:'Салом', ru:'Привет'}];
             }
             renderDashboard();
         }
@@ -469,13 +477,18 @@
             const result = [];
             for (let i = 1; i < lines.length; i++) {
                 if (!lines[i]) continue;
+                // Regex to split by comma but ignore commas inside quotes
                 const parts = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
+                
+                // Column A(0)=Level, B(1)=English, C(2)=Tajik, D(3)=Russian
                 if (parts.length >= 3) {
                     result.push({
                         id: i,
                         cat: parts[0].trim().replace(/^"|"$/g, ''),
                         en: parts[1].trim().replace(/^"|"$/g, ''),
-                        tj: parts[2].trim().replace(/^"|"$/g, '')
+                        tj: parts[2].trim().replace(/^"|"$/g, ''),
+                        // Safe check for Russian column (column D)
+                        ru: parts[3] ? parts[3].trim().replace(/^"|"$/g, '') : ''
                     });
                 }
             }
@@ -588,12 +601,15 @@
             const bgs = ['💡', '✨', '🔥', '🎯', '🚀', '🧠', '⚡️', '🌟', '💎'];
             const randomBg = bgs[Math.floor(Math.random() * bgs.length)];
             
+            // Added Russian word div below Tajik word
             card.innerHTML = `
                 <div class="card-inner">
                     <div class="float-bg">${randomBg}</div>
 
                     <div class="english-word">${word.en}</div>
                     <div class="tajik-word">${word.tj}</div>
+                    <div class="russian-word">${word.ru || ''}</div>
+                    
                     <div class="big-heart">${ICONS.HEART}</div>
                     <div style="font-size: 10px; opacity: 0.4; margin-top: 15px; position:relative; z-index:1">Double tap to like</div>
                 </div>
@@ -731,7 +747,8 @@
             options.forEach(opt => {
                 const btn = document.createElement('button');
                 btn.className = 'option-btn';
-                btn.innerText = opt.tj;
+                // Only showing Tajik in quiz options as requested
+                btn.innerText = opt.tj; 
                 btn.onclick = () => checkAnswer(opt.id, currentWord.id, btn);
                 grid.appendChild(btn);
             });
@@ -760,17 +777,31 @@
             resultDiv.style.display = 'flex';
             document.getElementById('score-display').innerText = `${quizScore}/${quizQuestions.length}`;
             
+            const isFavoritesQuiz = currentQuizLevel === 'Favorites';
+            const resultTitle = document.getElementById('result-title');
+            const resultMsg = document.getElementById('result-msg');
+            const resultBtn = document.getElementById('quiz-action-btn');
+
             if (quizScore >= 8) {
-                document.getElementById('result-title').innerText = "Level Unlocked!";
-                document.getElementById('result-msg').innerText = "Great job! You've mastered this section.";
-                document.getElementById('quiz-action-btn').innerText = "Continue";
                 document.getElementById('score-display').style.borderColor = 'var(--success-color)';
                 triggerConfetti();
-                if (currentQuizLevel !== 'Favorites') unlockNextLevel(currentQuizLevel);
+
+                if (isFavoritesQuiz) {
+                    // Specific behavior for Favorites: Motivational, NO unlock
+                    resultTitle.innerText = "Good Practice!";
+                    resultMsg.innerText = "Keep reviewing your favorites to memorize them!";
+                    resultBtn.innerText = "Back to Menu";
+                } else {
+                    // Standard Level: Unlock behavior
+                    resultTitle.innerText = "Level Unlocked!";
+                    resultMsg.innerText = "Great job! You've mastered this section.";
+                    resultBtn.innerText = "Continue";
+                    unlockNextLevel(currentQuizLevel);
+                }
             } else {
-                document.getElementById('result-title').innerText = "Almost There";
-                document.getElementById('result-msg').innerText = "You need 8 correct answers to unlock the next level.";
-                document.getElementById('quiz-action-btn').innerText = "Try Again";
+                resultTitle.innerText = "Almost There";
+                resultMsg.innerText = "You need 8 correct answers to master this.";
+                resultBtn.innerText = "Try Again";
                 document.getElementById('score-display').style.borderColor = 'var(--error-color)';
             }
         }
