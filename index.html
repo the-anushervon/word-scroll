@@ -193,7 +193,7 @@
             background: rgba(255, 255, 255, 0.08); 
             backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            width: 90%; height: 80%; border-radius: 36px; /* Slightly taller for sentences */
+            width: 90%; height: 80%; border-radius: 36px;
             display: flex; flex-direction: column; align-items: center;
             justify-content: center; gap: 12px;
             box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
@@ -221,9 +221,18 @@
             margin-top: 15px; padding: 15px; width: 85%;
             background: rgba(0,0,0,0.2); border-radius: 15px;
             font-size: 16px; line-height: 1.4; color: #fff;
-            position: relative; z-index: 1;
+            position: relative; z-index: 1; min-height: 60px;
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.3s;
         }
-        .sentence-highlight { color: var(--accent-color); font-weight: 700; }
+        
+        /* FIX: Margin added to force separation between words */
+        .sentence-highlight { 
+            color: var(--accent-color); 
+            font-weight: 700; 
+            margin: 0 4px; /* Force Space */
+            display: inline-block;
+        }
 
         .quiz-entry-card .english-word { font-size: 28px; -webkit-text-fill-color: white; }
         .quiz-entry-card .start-btn {
@@ -398,6 +407,9 @@
         let quizIndex = 0;
         let quizScore = 0;
         let currentQuizLevel = "";
+        
+        // --- INTERVAL MANAGEMENT FOR SENTENCE TOGGLE ---
+        let activeInterval = null;
 
         // UI REFS
         const feedContainer = document.getElementById('feed-container');
@@ -411,12 +423,18 @@
         window.addEventListener('resize', setAppHeight);
         setAppHeight(); 
 
+        // --- ANIMATION & TOGGLE LOGIC ---
         const cardObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
+                const card = entry.target;
                 if (entry.isIntersecting) {
-                    entry.target.classList.add('in-view');
+                    card.classList.add('in-view');
+                    // Start toggling sentences if they exist
+                    if(card.startToggling) card.startToggling();
                 } else {
-                    entry.target.classList.remove('in-view');
+                    card.classList.remove('in-view');
+                    // Stop toggling to save performance
+                    if(card.stopToggling) card.stopToggling();
                 }
             });
         }, { threshold: 0.6 });
@@ -459,8 +477,12 @@
                         en: parts[1].trim().replace(/^"|"$/g, ''),
                         tj: parts[2].trim().replace(/^"|"$/g, ''),
                         ru: parts[3] ? parts[3].trim().replace(/^"|"$/g, '') : '',
-                        // NEW: Read Column E (Sentence)
-                        sentence: parts[4] ? parts[4].trim().replace(/^"|"$/g, '') : '' 
+                        // Col E (4) = English Sentence
+                        sentence_en: parts[4] ? parts[4].trim().replace(/^"|"$/g, '') : '',
+                        // Col F (5) = Tajik Sentence
+                        sentence_tj: parts[5] ? parts[5].trim().replace(/^"|"$/g, '') : '',
+                        // Col G (6) = Russian Sentence (NEW)
+                        sentence_ru: parts[6] ? parts[6].trim().replace(/^"|"$/g, '') : ''
                     });
                 }
             }
@@ -565,13 +587,31 @@
             const isFav = favorites.includes(word.id);
             const enText = word.en.replace(/'/g, "\\'"); 
             
-            // --- LOGIC: Highlight the word in the sentence if possible ---
-            let sentenceHtml = '';
-            if (word.sentence) {
-                // Simple regex to bold the word (case insensitive)
-                const safeWord = word.en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape regex chars
-                const highlighted = word.sentence.replace(new RegExp(`\\b${safeWord}\\b`, 'gi'), match => `<span class="sentence-highlight">${match}</span>`);
-                sentenceHtml = `<div class="sentence-box">"${highlighted}"</div>`;
+            // --- FIXED: Explicitly preserve separators (spaces/punctuation) ---
+            function highlightWord(sentence, wordToFind) {
+                if(!sentence || !wordToFind) return "";
+                const safeWord = wordToFind.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); 
+                
+                // Matches: Separator Group ($1) + Word ($2) + Separator Group ($3)
+                // This ensures we capture the spaces around the word and put them back
+                const regex = new RegExp('(^|[\\s\\.,;!?\\"\'\\(\\)\\[\\]-])(' + safeWord + ')([\\s\\.,;!?\\"\'\\(\\)\\[\\]-]|$)', 'gi');
+                
+                // If it doesn't match (e.g. slight spelling diff), return original text
+                if (!regex.test(sentence)) return sentence; 
+
+                // Replace with: Separator + Span + Separator
+                return sentence.replace(regex, '$1<span class="sentence-highlight">$2</span>$3');
+            }
+
+            // Prepare sentences data structure
+            const sentences = [];
+            if(word.sentence_en) sentences.push(highlightWord(word.sentence_en, word.en));
+            if(word.sentence_tj) sentences.push(highlightWord(word.sentence_tj, word.tj));
+            if(word.sentence_ru) sentences.push(highlightWord(word.sentence_ru, word.ru));
+
+            let sentenceBoxHtml = '';
+            if (sentences.length > 0) {
+                sentenceBoxHtml = `<div class="sentence-box" id="sentence-${word.id}"></div>`;
             }
 
             const bgs = ['💡', '✨', '🔥', '🎯', '🚀', '🧠', '⚡️', '🌟', '💎'];
@@ -584,7 +624,7 @@
                     <div class="english-word">${word.en}</div>
                     <div class="tajik-word">${word.tj}</div>
                     <div class="russian-word">${word.ru || ''}</div>
-                    ${sentenceHtml}
+                    ${sentenceBoxHtml}
                     
                     <div class="big-heart">${ICONS.HEART}</div>
                 </div>
@@ -602,6 +642,50 @@
                 </div>
             `;
             
+            // --- LOGIC: 3-Way Sentence Toggling (En -> Tj -> Ru) ---
+            if (sentences.length > 0) {
+                let currentIndex = 0;
+                let isPaused = false;
+                let intervalId = null;
+                const box = card.querySelector(`#sentence-${word.id}`);
+                
+                // Initialize
+                box.innerHTML = `"${sentences[0]}"`;
+
+                const updateSentence = () => {
+                    if (isPaused) return; 
+                    
+                    // Fade Out
+                    box.style.opacity = 0;
+                    
+                    setTimeout(() => {
+                        // Switch Text
+                        currentIndex = (currentIndex + 1) % sentences.length;
+                        box.innerHTML = `"${sentences[currentIndex]}"`;
+                        // Fade In
+                        box.style.opacity = 1;
+                    }, 200);
+                };
+
+                card.startToggling = () => {
+                    if (intervalId) clearInterval(intervalId);
+                    if (sentences.length > 1) { 
+                        intervalId = setInterval(updateSentence, 2000);
+                    }
+                };
+                card.stopToggling = () => {
+                    if (intervalId) clearInterval(intervalId);
+                    intervalId = null;
+                };
+
+                const inner = card.querySelector('.card-inner');
+                inner.addEventListener('touchstart', () => { isPaused = true; });
+                inner.addEventListener('touchend', () => { isPaused = false; });
+                inner.addEventListener('mousedown', () => { isPaused = true; }); 
+                inner.addEventListener('mouseup', () => { isPaused = false; });
+            }
+
+            // --- EXISTING INTERACTION LOGIC ---
             let lastTap = 0;
             const inner = card.querySelector('.card-inner');
             
